@@ -1,6 +1,8 @@
 package com.panjia.console.license.api;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.panjia.console.common.enums.AuthCodeStatus;
 import com.panjia.console.license.api.dto.*;
 import com.panjia.console.license.domain.AuthCode;
@@ -112,6 +114,22 @@ public class LicenseEngineImpl implements LicenseEngine {
     @Override
     public BlacklistView getBlacklist(String customerNo) {
         return blacklistService.getBlacklistByCustomer(customerNo);
+    }
+
+    @Override
+    public IPage<HeartbeatSnapshot> pageHeartbeatSnapshots(int pageNum, int pageSize) {
+        IPage<HeartbeatRecord> recordPage = heartbeatRecordMapper.selectLatestPerCustomer(
+                new Page<>(pageNum, pageSize));
+
+        return recordPage.convert(record -> HeartbeatSnapshot.builder()
+                .customerNo(record.getCustomerNo())
+                .instanceId(record.getInstanceId())
+                .lastHeartbeatAt(record.getReceivedAt())
+                .onlineStatus(calculateOnlineStatus(record.getReceivedAt()))
+                .currentStores(record.getCurrentStores())
+                .currentUsers(record.getCurrentUsers())
+                .clientMode(record.getClientMode())
+                .build());
     }
 
     /**

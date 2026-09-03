@@ -120,6 +120,17 @@ public interface LicenseEngine {
     HeartbeatSnapshot getHeartbeatSnapshot(String customerNo);
 
     /**
+     * 分页查询所有客户的最新心跳快照
+     * <p>
+     * 直接从心跳流水表取每个客户最新一条，计算在线状态。
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页大小
+     * @return 分页结果
+     */
+    com.baomidou.mybatisplus.core.metadata.IPage<HeartbeatSnapshot> pageHeartbeatSnapshots(int pageNum, int pageSize);
+
+    /**
      * 获取指定客户的黑名单视图
      *
      * @param customerNo 客户编号

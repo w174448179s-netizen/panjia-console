@@ -1,73 +1,87 @@
 package com.panjia.console.customer.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.panjia.console.common.dto.R;
-import com.panjia.console.customer.domain.CustomerRuntime;
+import com.panjia.console.customer.mapper.CustomerMapper;
 import com.panjia.console.customer.service.AlertSyncService;
-import com.panjia.console.customer.service.RuntimeMonitorService;
+import com.panjia.console.license.api.LicenseEngine;
+import com.panjia.console.license.api.dto.HeartbeatSnapshot;
+import com.panjia.console.license.domain.AuthCode;
+import com.panjia.console.license.mapper.AuthCodeMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * 看板 Controller
  * <p>
- * 管理面接口，提供运营看板所需的统计数据和运行时概览。
+ * 运营看板统计数据和运行时概览。
+ * 运行时数据直接从心跳流水表查（每个客户最新一条），不做额外快照表。
  */
 @RestController
 @RequestMapping("/api/v1/dashboard")
 @RequiredArgsConstructor
 public class DashboardController {
 
-    private final RuntimeMonitorService runtimeMonitorService;
+    private final LicenseEngine licenseEngine;
+    private final CustomerMapper customerMapper;
+    private final AuthCodeMapper authCodeMapper;
     private final AlertSyncService alertSyncService;
 
     /**
      * 获取看板统计概览
-     * <p>
-     * 返回客户总数、在线/离线数、受限数、未处理告警数等核心指标。
      */
     @GetMapping("/stats")
     public R<Map<String, Object>> getStats() {
-        Map<String, Object> stats = runtimeMonitorService.getDashboardStats();
-        stats.put("openAlertCount", alertSyncService.countOpenAlerts());
+        long totalCustomers = customerMapper.selectCount(null);
+
+        // 有效授权数（ACTIVE 状态）
+        long activeLicenses = authCodeMapper.selectCount(
+                new LambdaQueryWrapper<AuthCode>()
+                        .eq(AuthCode::getStatus, "ACTIVE"));
+
+        // 从心跳流水表取所有客户最新一条，统计在线状态
+        List<HeartbeatSnapshot> all = licenseEngine.pageHeartbeatSnapshots(1, Integer.MAX_VALUE).getRecords();
+        long onlineInstances = 0;
+        long offlineInstances = 0;
+        long lostInstances = 0;
+        for (HeartbeatSnapshot s : all) {
+            switch (s.getOnlineStatus()) {
+                case "ONLINE" -> onlineInstances++;
+                case "OFFLINE" -> offlineInstances++;
+                case "LOST" -> lostInstances++;
+            }
+        }
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalCustomers", totalCustomers);
+        stats.put("activeLicenses", activeLicenses);
+        stats.put("onlineInstances", onlineInstances);
+        stats.put("offlineInstances", offlineInstances);
+        stats.put("lostInstances", lostInstances);
+        stats.put("openAlerts", alertSyncService.countOpenAlerts());
         return R.ok(stats);
     }
 
     /**
-     * 分页查询客户运行时列表
+     * 分页查询客户运行时列表（直接从心跳流水表取最新）
      */
     @GetMapping("/runtimes")
-    public R<IPage<CustomerRuntime>> pageRuntimes(
+    public R<IPage<HeartbeatSnapshot>> pageRuntimes(
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String onlineStatus) {
-        return R.ok(runtimeMonitorService.pageRuntimes(pageNum, pageSize, onlineStatus));
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return R.ok(licenseEngine.pageHeartbeatSnapshots(pageNum, pageSize));
     }
 
     /**
      * 根据客户编号查询运行时详情
      */
     @GetMapping("/runtimes/{customerNo}")
-    public R<CustomerRuntime> getRuntime(@PathVariable String customerNo) {
-        return R.ok(runtimeMonitorService.getByCustomerNo(customerNo));
-    }
-
-    /**
-     * 手动刷新指定客户的运行时快照
-     */
-    @PostMapping("/runtimes/{customerNo}/refresh")
-    public R<Void> refreshRuntime(@PathVariable String customerNo) {
-        runtimeMonitorService.refreshRuntime(customerNo);
-        return R.ok();
-    }
-
-    /**
-     * 手动刷新全部运行时快照
-     */
-    @PostMapping("/runtimes/refresh-all")
-    public R<Integer> refreshAll() {
-        return R.ok(runtimeMonitorService.refreshAllRuntimes());
+    public R<HeartbeatSnapshot> getRuntime(@PathVariable String customerNo) {
+        return R.ok(licenseEngine.getHeartbeatSnapshot(customerNo));
     }
 }
