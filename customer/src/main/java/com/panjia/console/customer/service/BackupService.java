@@ -5,42 +5,51 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.panjia.console.customer.domain.BackupRecord;
 import com.panjia.console.customer.mapper.BackupRecordMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
  * 备份服务
+ * <p>
+ * 使用 pg_dump 导出整个 postgres 数据库为自定义格式（.dump），
+ * 支持还原（pg_restore）。备份文件存放在配置的备份目录中。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class BackupService {
 
     private final BackupRecordMapper backupRecordMapper;
 
-    /**
-     * 根据 ID 查询备份记录
-     *
-     * @param id 备份 ID
-     * @return 备份记录
-     */
-    public BackupRecord getById(Long id) {
-        return backupRecordMapper.selectById(id);
+    @Value("${panjia.backup.dir:./backups}")
+    private String backupDir;
+
+    @Value("${spring.datasource.url}")
+    private String datasourceUrl;
+
+    @Value("${spring.datasource.username}")
+    private String datasourceUsername;
+
+    @Value("${spring.datasource.password}")
+    private String datasourcePassword;
+
+    public BackupService(BackupRecordMapper backupRecordMapper) {
+        this.backupRecordMapper = backupRecordMapper;
     }
 
     /**
      * 分页查询备份记录
-     *
-     * @param pageNum    页码
-     * @param pageSize   每页大小
-     * @param backupType 备份类型（可选）
-     * @param status     状态（可选）
-     * @return 分页结果
      */
     public IPage<BackupRecord> pageRecords(int pageNum, int pageSize, String backupType, String status) {
         LambdaQueryWrapper<BackupRecord> wrapper = new LambdaQueryWrapper<>();
@@ -55,62 +64,141 @@ public class BackupService {
     }
 
     /**
-     * 创建备份任务
-     *
-     * @param backupType 备份类型
-     * @param operator   操作人
-     * @param remark     备注
-     * @return 备份记录
+     * 根据 ID 查询备份记录
+     */
+    public BackupRecord getById(Long id) {
+        return backupRecordMapper.selectById(id);
+    }
+
+    /**
+     * 创建备份（异步执行 pg_dump）
      */
     public BackupRecord createBackup(String backupType, String operator, String remark) {
         String timestamp = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        String fileName = "backup_" + backupType.toLowerCase() + "_" + timestamp + ".tar.gz";
+        String fileName = "backup_" + (backupType == null ? "full" : backupType.toLowerCase()) + "_" + timestamp + ".dump";
+        Path filePath = Paths.get(backupDir, fileName);
 
         BackupRecord record = new BackupRecord();
         record.setFileName(fileName);
-        record.setFilePath("/backups/" + fileName);
-        record.setBackupType(backupType);
-        record.setStatus("PENDING");
+        record.setFilePath(filePath.toString());
+        record.setBackupType(backupType != null ? backupType : "FULL");
+        record.setStatus("RUNNING");
         record.setOperator(operator);
         record.setRemark(remark);
         record.setStartedAt(OffsetDateTime.now());
         backupRecordMapper.insert(record);
 
-        log.info("Created backup task: id={}, type={}, fileName={}", record.getId(), backupType, fileName);
+        doBackupAsync(record.getId(), filePath);
+
+        log.info("Backup started: id={}, fileName={}", record.getId(), fileName);
         return record;
     }
 
     /**
-     * 更新备份状态
-     *
-     * @param id       备份 ID
-     * @param status   状态
-     * @param errorMsg 错误信息（失败时）
-     * @param fileSize 文件大小
-     * @param sha256   SHA256 校验
+     * 异步执行 pg_dump
      */
-    public void updateBackupStatus(Long id, String status, String errorMsg, Long fileSize, String sha256) {
-        BackupRecord record = backupRecordMapper.selectById(id);
-        if (record == null) {
-            throw new IllegalArgumentException("Backup record not found: id=" + id);
+    @Async
+    public void doBackupAsync(Long recordId, Path filePath) {
+        try {
+            Path dir = filePath.getParent();
+            if (!Files.exists(dir)) {
+                Files.createDirectories(dir);
+            }
+
+            // 从 JDBC URL 解析 host:port/dbname
+            String host = "localhost";
+            int port = 5432;
+            String dbName = "postgres";
+            String url = datasourceUrl.replace("jdbc:postgresql://", "");
+            int slashIdx = url.indexOf('/');
+            int qIdx = url.indexOf('?');
+            String hostPort = url.substring(0, slashIdx);
+            dbName = qIdx > 0 ? url.substring(slashIdx + 1, qIdx) : url.substring(slashIdx + 1);
+            if (hostPort.contains(":")) {
+                String[] parts = hostPort.split(":");
+                host = parts[0];
+                port = Integer.parseInt(parts[1]);
+            } else {
+                host = hostPort;
+            }
+
+            ProcessBuilder pb = new ProcessBuilder(
+                    "pg_dump",
+                    "-h", host,
+                    "-p", String.valueOf(port),
+                    "-U", datasourceUsername,
+                    "-F", "c",        // 自定义格式（压缩）
+                    "-f", filePath.toString(),
+                    dbName
+            );
+            pb.environment().put("PGPASSWORD", datasourcePassword);
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+            StringBuilder out = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    out.append(line).append("\n");
+                }
+            }
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                throw new RuntimeException("pg_dump failed (exit=" + exitCode + "): " + out);
+            }
+
+            long fileSize = Files.size(filePath);
+            String sha256 = computeSha256(filePath);
+
+            updateStatus(recordId, "SUCCESS", null, fileSize, sha256, filePath.toString());
+            log.info("Backup completed: id={}, size={}, sha256={}", recordId, fileSize, sha256);
+
+        } catch (Exception e) {
+            log.error("Backup failed: id={}", recordId, e);
+            updateStatus(recordId, "FAILED", e.getMessage(), null, null, null);
         }
+    }
+
+    private void updateStatus(Long id, String status, String errorMsg, Long fileSize, String sha256, String filePath) {
+        BackupRecord record = backupRecordMapper.selectById(id);
+        if (record == null) return;
         record.setStatus(status);
         record.setErrorMsg(errorMsg);
         record.setFileSize(fileSize);
         record.setSha256(sha256);
+        if (filePath != null) {
+            record.setFilePath(filePath);
+        }
         if ("SUCCESS".equals(status) || "FAILED".equals(status)) {
             record.setFinishedAt(OffsetDateTime.now());
         }
         backupRecordMapper.updateById(record);
-        log.info("Updated backup status: id={}, status={}", id, status);
+    }
+
+    private String computeSha256(Path file) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] bytes = Files.readAllBytes(file);
+        byte[] hash = digest.digest(bytes);
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     /**
-     * 删除备份记录
-     *
-     * @param id 备份 ID
+     * 删除备份记录（同时删除物理文件）
      */
     public void deleteRecord(Long id) {
+        BackupRecord record = backupRecordMapper.selectById(id);
+        if (record != null && record.getFilePath() != null) {
+            try {
+                Files.deleteIfExists(Paths.get(record.getFilePath()));
+            } catch (Exception e) {
+                log.warn("Failed to delete backup file: {}", record.getFilePath(), e);
+            }
+        }
         backupRecordMapper.deleteById(id);
         log.info("Deleted backup record: id={}", id);
     }
