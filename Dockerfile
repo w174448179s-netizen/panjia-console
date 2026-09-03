@@ -22,6 +22,11 @@ RUN mvn package -DskipTests -B -pl customer -am
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
+# 安装 PostgreSQL 客户端（pg_dump / pg_restore）
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
 # 创建运行用户（非 root 运行）
 RUN groupadd -r panjia && useradd -r -g panjia panjia
 
