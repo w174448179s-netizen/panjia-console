@@ -1,6 +1,6 @@
 package com.panjia.console.license.controller.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
 import com.panjia.console.license.controller.auth.dto.*;

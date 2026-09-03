@@ -34,19 +34,10 @@
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
-        <!-- JSON（Spring Boot 4 webmvc starter 不再默认包含 Jackson 自动配置） -->
+        <!-- JSON（Spring Boot 4 自带 Jackson 3.x，compile scope） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-json</artifactId>
-        </dependency>
-        <!-- 编译期需要 Jackson 类（Spring Boot 4 starter-json 仅 runtime scope） -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
         <!-- Validation -->

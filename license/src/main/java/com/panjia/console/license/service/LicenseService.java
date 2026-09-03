@@ -1,7 +1,7 @@
 package com.panjia.console.license.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.panjia.console.common.enums.AuthCodeStatus;
 import com.panjia.console.common.enums.BlacklistReason;
 import com.panjia.console.common.enums.FingerprintStatus;
@@ -469,7 +469,7 @@ public class LicenseService {
         }
         try {
             return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error("Failed to serialize to JSON", e);
             return null;
         }

@@ -250,7 +250,7 @@ public class ActivateService {
             return Collections.emptyList();
         }
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
             return mapper.readValue(capabilitiesJson,
                     mapper.getTypeFactory().constructCollectionType(List.class, String.class));
         } catch (Exception e) {

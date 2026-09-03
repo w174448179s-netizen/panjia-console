@@ -1,6 +1,6 @@
 package com.panjia.console.customer.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.panjia.console.common.annotation.OpsLog;
 import com.panjia.console.common.dto.R;
 import com.panjia.console.customer.mapper.OpsLogMapper;

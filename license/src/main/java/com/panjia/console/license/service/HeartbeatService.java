@@ -1,6 +1,6 @@
 package com.panjia.console.license.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.panjia.console.common.enums.*;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
