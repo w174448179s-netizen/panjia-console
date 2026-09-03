@@ -115,7 +115,7 @@ public class JwtIssuer {
                 .claim("licenseVersion", claims.getLicenseVersion())
                 .claim("clientMode", claims.getClientMode())
                 .claim("offlineExpireAt", claims.getOfflineExpireAt() != null
-                        ? claims.getOfflineExpireAt().toString() : null)
+                        ? Date.from(claims.getOfflineExpireAt().toInstant()) : null)
                 .issuedAt(Date.from(now.toInstant()))
                 .expiration(Date.from(exp.toInstant()))
                 .signWith(privateKey, SignatureAlgorithm.RS256)
