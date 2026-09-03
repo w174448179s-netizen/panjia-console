@@ -35,7 +35,6 @@ script/keys/*.bak
 
 # 备份文件
 *.dump
-*.sql
 backup/
 
 # === OS ===
