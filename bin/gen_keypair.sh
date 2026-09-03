@@ -8,7 +8,7 @@
 #
 # 输出：
 #   script/keys/panjia-license.jks    —— 私钥库（权限 600，仅服务端使用）
-#   script/keys/public-key.pem        —— 公钥（内嵌客户端 JAR）
+#   script/keys/license-public-key.pem        —— 公钥（内嵌客户端 JAR）
 #
 # ★ 安全注意（H5）：
 #   - jks 文件权限必须设置为 600
@@ -23,7 +23,7 @@ KEY_PASSWORD=${1:-}
 KEY_ALIAS=${2:-panjia-license}
 OUTPUT_DIR="$(dirname "$0")/../script/keys"
 JKS_FILE="$OUTPUT_DIR/panjia-license.jks"
-PUB_KEY_FILE="$OUTPUT_DIR/public-key.pem"
+PUB_KEY_FILE="$OUTPUT_DIR/license-public-key.pem"
 
 if [ -z "$KEY_PASSWORD" ]; then
     echo "错误：请提供密钥密码作为第一个参数"
@@ -33,10 +33,11 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-# 如果已存在，先备份
+# 如果已存在，先备份再删除，避免 keytool 用新密码打开旧库报错
 if [ -f "$JKS_FILE" ]; then
     echo "检测到已有 JKS 文件，备份为 $JKS_FILE.bak"
     cp "$JKS_FILE" "$JKS_FILE.bak"
+    rm -f "$JKS_FILE"
 fi
 
 echo "正在生成 RSA 2048 位密钥对..."
