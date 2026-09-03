@@ -1,0 +1,48 @@
+# === Java ===
+*.class
+*.jar
+*.war
+*.ear
+*.log
+target/
+build/
+out/
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# === Node / Frontend ===
+node_modules/
+ui/dist/
+ui/.vite/
+*.tsbuildinfo
+
+# === 敏感文件（★ 严禁提交）====
+# JKS 密钥库（H5：私钥永远不入 Git）
+script/keys/*.jks
+script/keys/*.pem
+script/keys/*.bak
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 备份文件
+*.dump
+*.sql
+backup/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Logs ===
+logs/
+*.log
+nohup.out

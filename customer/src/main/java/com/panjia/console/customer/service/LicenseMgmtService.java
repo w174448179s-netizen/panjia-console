@@ -1,0 +1,137 @@
+package com.panjia.console.customer.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.panjia.console.customer.domain.AuthIssueRecord;
+import com.panjia.console.customer.mapper.AuthIssueRecordMapper;
+import com.panjia.console.license.api.LicenseEngine;
+import com.panjia.console.license.api.dto.CreateLicenseRequest;
+import com.panjia.console.license.api.dto.CreateLicenseResult;
+import com.panjia.console.license.api.dto.RestoreResult;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.time.OffsetDateTime;
+
+/**
+ * 授权管理服务
+ * <p>
+ * 通过 LicenseEngine 接口调用 license 模块能力，
+ * 本地仅维护签发流水投影表，license 是权威源。
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class LicenseMgmtService {
+
+    private final LicenseEngine licenseEngine;
+    private final AuthIssueRecordMapper authIssueRecordMapper;
+
+    /**
+     * 签发授权
+     *
+     * @param req 签发请求
+     * @return 签发结果
+     */
+    public CreateLicenseResult issueLicense(CreateLicenseRequest req) {
+        log.info("Issuing license: customerNo={}, licenseType={}, requestId={}",
+                req.getCustomerNo(), req.getLicenseType(), req.getRequestId());
+
+        CreateLicenseResult result = licenseEngine.createLicense(req);
+
+        // 写入本地签发流水投影表
+        AuthIssueRecord record = new AuthIssueRecord();
+        record.setLicenseId(result.getLicenseId());
+        record.setCustomerNo(req.getCustomerNo());
+        record.setAuthCode(result.getAuthCode());
+        record.setLicenseType(req.getLicenseType());
+        record.setVersion(req.getVersion());
+        record.setMaxStores(req.getMaxStores());
+        record.setMaxUsers(req.getMaxUsers());
+        if (req.getCapabilities() != null) {
+            record.setCapabilities(String.join(",", req.getCapabilities()));
+        }
+        record.setStartDate(req.getStartDate());
+        record.setEndDate(req.getEndDate());
+        record.setMaintenanceEndDate(req.getMaintenanceEndDate());
+        record.setOperator(req.getIssuedBy());
+        record.setIssueAt(OffsetDateTime.now());
+        authIssueRecordMapper.insert(record);
+
+        return result;
+    }
+
+    /**
+     * 吊销授权
+     *
+     * @param authCode 授权码
+     * @param reason   吊销原因
+     */
+    public void revokeLicense(String authCode, String reason) {
+        log.info("Revoking license: authCode={}, reason={}", authCode, reason);
+        licenseEngine.revoke(authCode, reason);
+    }
+
+    /**
+     * 恢复授权
+     *
+     * @param authCode 授权码
+     * @param reason   恢复原因
+     * @return 恢复结果
+     */
+    public RestoreResult restoreLicense(String authCode, String reason) {
+        log.info("Restoring license: authCode={}, reason={}", authCode, reason);
+        return licenseEngine.restore(authCode, reason);
+    }
+
+    /**
+     * 换机（使当前指纹失效）
+     *
+     * @param authCode 授权码
+     */
+    public void invalidateFingerprint(String authCode) {
+        log.info("Invalidating fingerprint: authCode={}", authCode);
+        licenseEngine.invalidateFingerprint(authCode);
+    }
+
+    /**
+     * 取消换机
+     *
+     * @param authCode 授权码
+     * @param reason   取消原因
+     */
+    public void cancelRebinding(String authCode, String reason) {
+        log.info("Canceling rebinding: authCode={}, reason={}", authCode, reason);
+        licenseEngine.cancelRebinding(authCode, reason);
+    }
+
+    /**
+     * 从黑名单移除
+     *
+     * @param authCode 授权码
+     */
+    public void removeFromBlacklist(String authCode) {
+        log.info("Removing from blacklist: authCode={}", authCode);
+        licenseEngine.removeFromBlacklist(authCode);
+    }
+
+    /**
+     * 分页查询签发流水
+     *
+     * @param pageNum    页码
+     * @param pageSize   每页大小
+     * @param customerNo 客户编号（可选）
+     * @return 分页结果
+     */
+    public IPage<AuthIssueRecord> pageIssueRecords(int pageNum, int pageSize, String customerNo) {
+        LambdaQueryWrapper<AuthIssueRecord> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(customerNo)) {
+            wrapper.eq(AuthIssueRecord::getCustomerNo, customerNo);
+        }
+        wrapper.orderByDesc(AuthIssueRecord::getIssueAt);
+        return authIssueRecordMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+    }
+}

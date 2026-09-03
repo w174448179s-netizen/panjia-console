@@ -1,0 +1,67 @@
+server:
+  port: 8081
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: panjia-console
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/postgres?TimeZone=Asia/Shanghai
+    username: root
+    password: root
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    encoding: UTF-8
+    schemas: auth,customer,public
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*Mapper.xml
+  type-aliases-package: com.panjia.console.**.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    call-setters-on-nulls: true
+    jdbc-type-for-null: 'null'
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 盘家智管配置
+panjia:
+  operator:
+    name: admin
+  license:
+    # JKS 配置（密码从环境变量 PANJIA_JKS_PASSWORD 注入，禁止明文写在这里）
+    jks-path: ${PANJIA_JKS_PATH:script/keys/panjia-license.jks}
+    jks-password: ${PANJIA_JKS_PASSWORD:}
+    key-alias: panjia-license
+    key-password: ${PANJIA_KEY_PASSWORD:}
+    # JWT 有效期（天）
+    jwt-expire-days: 7
+    # 离线宽限（天）
+    offline-expire-days: 7
+    # 心跳归档保留天数
+    heartbeat-retention-days: 180
+    # 多实例检测窗口（小时）
+    multi-instance-window-hours: 24
+    # 多实例确认次数
+    multi-instance-confirm-count: 3
+
+  # 备份配置
+  backup:
+    dir: ${PANJIA_BACKUP_DIR:./backups}
+
+logging:
+  level:
+    com.panjia.console: debug
+    org.springframework.web: info

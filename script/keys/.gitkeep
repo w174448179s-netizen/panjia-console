@@ -1,0 +1,7 @@
+# 此目录存放 JKS 密钥库文件
+#
+# ★ 安全注意（H5）：
+#   - panjia-license.jks 权限必须为 600
+#   - 禁止提交到 Git（已在 .gitignore 中排除）
+#   - 首次部署前执行 bin/gen_keypair.sh 生成
+#   - 需离线加密备份，与数据库备份物理隔离

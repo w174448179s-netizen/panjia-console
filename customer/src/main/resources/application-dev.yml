@@ -1,0 +1,13 @@
+# ============================================================================
+# 开发环境配置（仅本地开发使用，生产环境必须通过环境变量覆盖）
+# ============================================================================
+
+panjia:
+  license:
+    # 开发环境 JKS 密码（生产环境必须通过 PANJIA_JKS_PASSWORD 环境变量覆盖）
+    jks-password: ${PANJIA_JKS_PASSWORD:devpass123456}
+    key-password: ${PANJIA_KEY_PASSWORD:devpass123456}
+
+logging:
+  level:
+    com.panjia.console: debug

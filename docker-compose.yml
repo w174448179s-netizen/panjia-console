@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16.9
+    container_name: postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      # 运行时数据（不提交 Git）
+      - ./data/postgres:/var/lib/postgresql/data
+
+  console:
+    build: .
+    container_name: panjia-console
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      # ★ H5：JKS 密码从环境变量注入，禁止明文写配置
+      PANJIA_JKS_PATH: /app/keys/panjia-license.jks
+      PANJIA_JKS_PASSWORD: ${PANJIA_JKS_PASSWORD:?err}
+      PANJIA_KEY_PASSWORD: ${PANJIA_KEY_PASSWORD:?err}
+      PANJIA_OPERATOR_NAME: ${PANJIA_OPERATOR_NAME:-admin}
+    ports:
+      - "8080:8080"
+    volumes:
+      # ★ JKS 以只读卷挂载，宿主机文件权限必须为 600
+      - ./script/keys/panjia-license.jks:/app/keys/panjia-license.jks:ro
+    restart: unless-stopped
