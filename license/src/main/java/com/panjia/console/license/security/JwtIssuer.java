@@ -158,7 +158,7 @@ public class JwtIssuer {
                 .keyVersion(getInt(claims, "keyVersion"))
                 .licenseVersion(getInt(claims, "licenseVersion"))
                 .clientMode(getString(claims, "clientMode"))
-                .offlineExpireAt(parseOffsetDateTime(getString(claims, "offlineExpireAt")))
+                .offlineExpireAt(toOffsetDateTime(claims.get("offlineExpireAt", Date.class)))
                 .issuedAt(claims.getIssuedAt() != null
                         ? claims.getIssuedAt().toInstant().atZone(ZoneId.systemDefault()).toOffsetDateTime()
                         : null)
@@ -214,5 +214,12 @@ public class JwtIssuer {
             return null;
         }
         return OffsetDateTime.parse(value);
+    }
+
+    private OffsetDateTime toOffsetDateTime(Date date) {
+        if (date == null) {
+            return null;
+        }
+        return date.toInstant().atZone(ZoneId.systemDefault()).toOffsetDateTime();
     }
 }
