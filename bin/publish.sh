@@ -12,7 +12,7 @@
 # 流程：
 #   1) push-backend.sh  --force-recreate 重建 console 容器
 #   2) push-frontend.sh 清空 web/dist 再解压新 dist
-#   3) 健康检查 GET / 和 GET /api/panjia/dashboard/stats
+#   3) 健康检查 GET / 和 GET /api/v1/dashboard/stats
 # ============================================================================
 
 set -e
@@ -109,7 +109,7 @@ check_url_retry() {
 check_url_once "http://${SERVER_ADDR}/"           "首页 /"
 check_url_once "http://${SERVER_ADDR}/favicon.ico" "favicon"
 if [ "$MODE" != "frontend-only" ]; then
-    check_url_retry "http://${SERVER_ADDR}/api/panjia/dashboard/stats" "后端 API"
+    check_url_retry "http://${SERVER_ADDR}/api/v1/dashboard/stats" "后端 API"
 fi
 
 # 容器状态
