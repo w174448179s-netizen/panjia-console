@@ -77,7 +77,9 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./acme:/var/www/certbot
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      # 用 127.0.0.1 强制走 IPv4——nginx 1.27+ alpine 只 listen 0.0.0.0,
+      # 而 wget http://localhost/ 会解析成 [::1] (IPv6),Connection refused
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 30s
       timeout: 10s
       retries: 3

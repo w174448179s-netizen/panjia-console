@@ -163,9 +163,15 @@ const issueDialogVisible = ref(false)
 const issuing = ref(false)
 const issueFormRef = ref<FormInstance>()
 
-/** 前端生成 requestId 作为幂等键（F1 冻结规则） */
+/** 前端生成 requestId 作为幂等键（F1 冻结规则）
+ *  crypto.randomUUID 仅 secure context（HTTPS/localhost）可用，
+ *  ip-only HTTP 部署必须用 getRandomValues 兜底，自己拼 UUIDv4 */
 function generateRequestId() {
-  return crypto.randomUUID()
+  if (crypto.randomUUID) return crypto.randomUUID()
+  const b = new Uint8Array(16); crypto.getRandomValues(b)
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`
 }
 
 const issueForm = reactive({

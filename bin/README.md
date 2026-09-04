@@ -10,7 +10,10 @@
 | `gen_keypair.sh` | 生成 JKS 密钥对（首次部署、轮换） | 项目初始化、密钥到期前 |
 | `setup-server.sh` | 远程初始化服务器（装 docker、申请证书、部署） | 新服务器首次部署、域名/HTTPS 切换 |
 | `add-domain.sh` | 给已部署的 IP 模式服务器加域名（stage 2） | 域名解析到位后 |
-| `deploy-to-server.sh` | scp 代码变更到服务器 | 日常代码更新 |
+| `push-frontend.sh` | **只**推送前端（Vue 改动） | 改完 Vue 代码、跳过后端发布 |
+| `push-backend.sh` | **只**推送后端（Java/Dockerfile/compose 改动） | 改完后端代码、跳过前端发布 |
+| `publish.sh` | **一键发布**：backend + frontend + 健康检查 | 改完代码、想一次推到服务器并自动验证 |
+| `deploy-to-server.sh` | 老的全量发布脚本，已被 setup-server.sh + push-* 取代 | 留作参考，不再使用 |
 | `start.sh` / `stop.sh` / `restart.sh` / `logs.sh` | **本地 docker run 控制**（拼装长参数） | 本地起开发环境 |
 
 ## 为什么跟 `deploy/server/` 下的同名脚本不一样？
