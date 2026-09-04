@@ -26,7 +26,7 @@
           <template #default="{ row }">{{ formatTime(row.releasedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="150">
-          <template #default="{ row }">
+          <template #default>
             <el-button type="primary" link :disabled="true">升级到此版本</el-button>
           </template>
         </el-table-column>

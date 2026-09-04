@@ -1,0 +1,84 @@
+# ============================================================================
+# 生产环境 docker-compose（nginx HTTPS + 后端 + 数据库）
+# 用法：
+#   1. 上传 deploy/server/ 目录到服务器 /opt/panjia-console/
+#   2. 复制 .env.example 为 .env，修改所有密码
+#   3. 导入后端镜像：docker load -i panjia-console.tar
+#   4. 启动：docker compose up -d
+# ============================================================================
+
+services:
+  postgres:
+    image: postgres:16.9
+    container_name: panjia-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?err}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?err}
+      POSTGRES_DB: ${POSTGRES_DB:-panjia}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  console:
+    image: panjia-console:${IMAGE_TAG:-latest}
+    container_name: panjia-console
+    # 用宿主机登录用户的 uid 跑（ubuntu=1000），否则读不了 600 权限的 panjia-license.jks
+    user: "1000:1000"
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # application.yml 默认 8081，容器里统一用 8080（nginx 代理和 healthcheck 都指向这里）
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-panjia}?TimeZone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?err}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?err}
+      PANJIA_JKS_PATH: /app/keys/panjia-license.jks
+      PANJIA_JKS_PASSWORD: ${PANJIA_JKS_PASSWORD:?err}
+      PANJIA_KEY_PASSWORD: ${PANJIA_KEY_PASSWORD:?err}
+      PANJIA_OPERATOR_NAME: ${PANJIA_OPERATOR_NAME:-admin}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m -XX:+UseG1GC}
+    expose:
+      - "8080"
+    volumes:
+      - ./keys/panjia-license.jks:/app/keys/panjia-license.jks:ro
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+    healthcheck:
+      # 后端没有 actuator（/actuator/health 会 404），镜像里也没装 curl——
+      # 用 bash 内置 /dev/tcp 做 TCP 端口探测，只验证「Tomcat 端口起来了」
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  web:
+    image: nginx:stable-alpine
+    container_name: panjia-console-web
+    restart: always
+    depends_on:
+      - console
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web/dist:/var/www/panjia-console:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./acme:/var/www/certbot
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -63,22 +63,23 @@ service.interceptors.response.use(
 
 /** GET 请求 */
 export function get<T = any>(url: string, params?: any, config?: AxiosRequestConfig): Promise<T> {
-  return service.get(url, { params, ...config })
+  // 拦截器（line 30-42）已经把 response.data 解包为 T，这里加 as 断言告诉 TS 即可
+  return service.get(url, { params, ...config }) as unknown as Promise<T>
 }
 
 /** POST 请求 */
 export function post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-  return service.post(url, data, config)
+  return service.post(url, data, config) as unknown as Promise<T>
 }
 
 /** PUT 请求 */
 export function put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-  return service.put(url, data, config)
+  return service.put(url, data, config) as unknown as Promise<T>
 }
 
 /** DELETE 请求 */
 export function del<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-  return service.delete(url, config)
+  return service.delete(url, config) as unknown as Promise<T>
 }
 
 export default service
