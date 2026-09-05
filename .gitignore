@@ -33,9 +33,9 @@ script/keys/*.bak
 .env.local
 .env.*.local
 
-# 备份文件
+# 备份文件（只忽略仓库根的运行时备份目录，不能写 backup/ ——会误伤 ui/src/views/backup/ 源码）
 *.dump
-backup/
+/backups/
 
 # === OS ===
 .DS_Store
