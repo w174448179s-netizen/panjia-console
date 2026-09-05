@@ -592,6 +592,34 @@ if command -v certbot &> /dev/null; then
     echo "[服务器] Certbot 已安装"
 else
     echo "[服务器] 安装 Certbot..."
+    # Ubuntu 自带的 unattended-upgrades 会在后台自动安装安全更新，占用 dpkg 锁，
+    # 导致 apt-get install 报 "Could not get lock /var/lib/dpkg/lock-frontend" 错误。
+    # 必须先停服务 + 杀进程 + 清锁 + 修复 dpkg，再装 Certbot。
+    export DEBIAN_FRONTEND=noninteractive
+
+    # 1) 停掉 unattended-upgrades 服务（防止再次触发）
+    systemctl stop unattended-upgrades 2>/dev/null || true
+    systemctl disable unattended-upgrades 2>/dev/null || true
+    echo "[服务器] 已停止 unattended-upgrades"
+
+    # 2) 杀掉残留的 apt/dpkg/unattended-upgr 进程
+    # 用 pgrep + kill，不依赖 lsof/fuser（新装系统可能没装这两个）
+    for pat in unattended-upgr apt-get dpkg; do
+        PIDS=\$(pgrep -f "\$pat" 2>/dev/null || true)
+        if [ -n "\$PIDS" ]; then
+            echo "[服务器] 终止 \$pat 进程：\$PIDS"
+            kill -9 \$PIDS 2>/dev/null || true
+        fi
+    done
+    sleep 2
+
+    # 3) 清理 dpkg 锁文件 + 修复中断的 dpkg 操作
+    rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock 2>/dev/null || true
+    dpkg --configure -a 2>/dev/null || true
+    echo "[服务器] dpkg 锁已清理"
+
+    # 4) 刷新包索引并安装 Certbot
+    apt-get update -qq
     apt-get install -y -qq certbot
     echo "[服务器] ✓ Certbot 安装完成"
 fi
