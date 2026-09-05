@@ -83,7 +83,7 @@ public class BackupService {
         record.setFileName(fileName);
         record.setFilePath(filePath.toString());
         record.setBackupType(backupType != null ? backupType : "FULL");
-        record.setStatus("RUNNING");
+        record.setStatus("IN_PROGRESS");
         record.setOperator(operator);
         record.setRemark(remark);
         record.setStartedAt(OffsetDateTime.now());
@@ -265,6 +265,33 @@ public class BackupService {
                     log.warn("Failed to delete temp restore file: {}", tempFile, e);
                 }
             }
+        }
+    }
+
+    /**
+     * 从已有备份记录还原（选择服务器上的备份文件 → pg_restore 覆盖当前数据库）
+     *
+     * @throws IllegalStateException 记录不存在 / 未成功 / 文件已丢失 / 还原失败
+     */
+    public void restoreFromRecord(Long id) {
+        BackupRecord record = backupRecordMapper.selectById(id);
+        if (record == null) {
+            throw new IllegalStateException("备份记录不存在: " + id);
+        }
+        if (!"SUCCESS".equals(record.getStatus())) {
+            throw new IllegalStateException("备份未成功完成，无法还原");
+        }
+        Path path = Paths.get(record.getFilePath());
+        if (!Files.isReadable(path)) {
+            throw new IllegalStateException("备份文件已丢失: " + record.getFileName());
+        }
+        try {
+            runRestore(path);
+            log.info("Restore from record completed: id={}, fileName={}", id, record.getFileName());
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("还原执行失败: " + e.getMessage(), e);
         }
     }
 

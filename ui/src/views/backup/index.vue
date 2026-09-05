@@ -45,8 +45,14 @@
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
+            <el-button
+              type="success"
+              link
+              :disabled="row.status !== 'SUCCESS'"
+              @click="handleRestoreFromRecord(row)"
+            >还原</el-button>
             <el-button
               type="primary"
               link
@@ -56,7 +62,7 @@
             <el-button
               type="danger"
               link
-              :disabled="row.status === 'RUNNING'"
+              :disabled="row.status === 'IN_PROGRESS'"
               @click="handleDelete(row)"
             >删除</el-button>
           </template>
@@ -186,6 +192,34 @@ async function handleDelete(row: any) {
     loadBackups()
   } catch {
     // 错误提示 request.ts 拦截器已弹出，这里静默
+  }
+}
+
+/** 从已有备份记录还原（直接用服务器上的备份文件，无需上传） */
+async function handleRestoreFromRecord(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要用备份「${row.fileName}」还原吗？<br/><strong style="color:#f56c6c">当前数据库的所有数据将被覆盖，此操作不可撤销！</strong>`,
+      '还原确认',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确认还原',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return
+  }
+  const loading = ElLoading.service({ text: '正在还原数据库，请勿关闭页面...', background: 'rgba(0,0,0,0.7)' })
+  try {
+    await post(`/v1/backups/${row.id}/restore`, null, { timeout: 600000 })
+    ElMessage.success('还原完成')
+    loadBackups()
+  } catch {
+    // 错误提示 request.ts 拦截器已弹出，这里静默
+  } finally {
+    loading.close()
   }
 }
 

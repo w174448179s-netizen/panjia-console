@@ -17,7 +17,10 @@ const service = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   (config) => {
-    // 管理面无登录认证（V1.3 精简版，靠网络层防护）
+    // FormData 时清除默认 Content-Type，让浏览器自动设置 multipart/form-data + boundary
+    if (config.data instanceof FormData) {
+      config.headers.delete('Content-Type')
+    }
     return config
   },
   (error) => {

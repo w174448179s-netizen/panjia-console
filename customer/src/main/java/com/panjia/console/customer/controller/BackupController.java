@@ -89,6 +89,20 @@ public class BackupController {
     }
 
     /**
+     * 从已有备份记录还原（选择服务器上的备份文件直接还原，无需上传）
+     */
+    @PostMapping("/{id}/restore")
+    @OpsLog(action = "RESTORE_BACKUP", targetType = "BACKUP")
+    public R<Void> restoreFromRecord(@PathVariable Long id) {
+        try {
+            backupService.restoreFromRecord(id);
+            return R.ok();
+        } catch (IllegalStateException e) {
+            return R.fail(e.getMessage());
+        }
+    }
+
+    /**
      * 下载备份文件（pg_dump 自定义格式 .dump）
      */
     @GetMapping("/{id}/download")
