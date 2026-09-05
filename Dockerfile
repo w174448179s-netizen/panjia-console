@@ -4,8 +4,16 @@ FROM docker.m.daocloud.io/library/eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # 安装 PostgreSQL 客户端（pg_dump / pg_restore）
+# 必须用 PG 官方 pgdg 仓库装 postgresql-client-16,不能用 Ubuntu 22.04 默认仓库
+# (默认仓库只有 postgresql-client = PG 14,与 server PG 16.x 不兼容,pg_dump 拒绝 dump)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends postgresql-client \
+    && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-16 \
+    && apt-get purge -y --auto-remove curl \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建运行用户（非 root 运行）

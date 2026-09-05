@@ -202,4 +202,24 @@ public class BackupService {
         backupRecordMapper.deleteById(id);
         log.info("Deleted backup record: id={}", id);
     }
+
+    /**
+     * 获取备份文件用于下载
+     *
+     * @throws IllegalStateException 记录不存在 / 未成功 / 文件已丢失
+     */
+    public Path getFileForDownload(Long id) {
+        BackupRecord record = backupRecordMapper.selectById(id);
+        if (record == null) {
+            throw new IllegalStateException("备份记录不存在: " + id);
+        }
+        if (!"SUCCESS".equals(record.getStatus())) {
+            throw new IllegalStateException("备份未成功完成，无法下载");
+        }
+        Path path = Paths.get(record.getFilePath());
+        if (!Files.isReadable(path)) {
+            throw new IllegalStateException("备份文件已丢失: " + record.getFileName());
+        }
+        return path;
+    }
 }

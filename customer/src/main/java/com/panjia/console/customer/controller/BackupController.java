@@ -6,7 +6,16 @@ import com.panjia.console.common.dto.R;
 import com.panjia.console.customer.domain.BackupRecord;
 import com.panjia.console.customer.service.BackupService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * 备份管理 Controller
@@ -60,5 +69,31 @@ public class BackupController {
     public R<Void> delete(@PathVariable Long id) {
         backupService.deleteRecord(id);
         return R.ok();
+    }
+
+    /**
+     * 下载备份文件（pg_dump 自定义格式 .dump）
+     */
+    @GetMapping("/{id}/download")
+    @OpsLog(action = "DOWNLOAD_BACKUP", targetType = "BACKUP")
+    public ResponseEntity<Resource> download(@PathVariable Long id) {
+        Path path;
+        try {
+            path = backupService.getFileForDownload(id);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(null);
+        }
+        String fileName = path.getFileName().toString();
+        try {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .contentLength(Files.size(path))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                    .body(new FileSystemResource(path));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

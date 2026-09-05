@@ -123,7 +123,7 @@ echo ""
 echo ">>> 步骤 4/4：验证后端 API"
 SUCC=0
 for i in $(seq 1 15); do
-    HTTP_CODE=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "http://${SERVER_ADDR}/api/panjia/dashboard/stats" 2>/dev/null || echo "000")
+    HTTP_CODE=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "http://${SERVER_ADDR}/api/v1/dashboard/stats" 2>/dev/null || echo "000")
     if [ "$HTTP_CODE" = "200" ]; then
         echo "  ✓ 后端 API 正常(第 $i/15 次)"
         SUCC=1
