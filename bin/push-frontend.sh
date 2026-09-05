@@ -18,10 +18,14 @@ IMAGE_TAG="${3:-v1}"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 INSTALL_DIR="/opt/panjia-console"
 
-# 1. 本地构建产物检查
-if [ ! -d "$PROJECT_DIR/ui/dist" ] || [ -z "$(ls -A "$PROJECT_DIR/ui/dist" 2>/dev/null)" ]; then
-    echo "ui/dist/ 不存在或为空,触发前端构建..."
+# 1. 本地构建产物检查: dist 缺失 或 源码比 dist 新 → 重新构建
+#    (只看"dist 存不存在"会推旧构建,漏掉刚改的代码)
+if [ ! -f "$PROJECT_DIR/ui/dist/index.html" ] || \
+   [ -n "$(find "$PROJECT_DIR/ui/src" -newer "$PROJECT_DIR/ui/dist/index.html" -print -quit 2>/dev/null)" ]; then
+    echo "ui/dist/ 缺失或源码有更新,触发前端构建..."
     sh "$PROJECT_DIR/bin/build.sh" "$IMAGE_TAG" --frontend
+else
+    echo "  ✓ ui/dist/ 已是最新"
 fi
 
 # 2. rsync 增量同步 + 自动清理远端旧文件
