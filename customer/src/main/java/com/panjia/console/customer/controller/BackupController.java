@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,6 +70,22 @@ public class BackupController {
     public R<Void> delete(@PathVariable Long id) {
         backupService.deleteRecord(id);
         return R.ok();
+    }
+
+    /**
+     * 上传备份文件还原（pg_restore 覆盖当前数据库，危险操作）
+     * <p>
+     * 还原场景是换机器/数据迁移：备份文件在别的机器上，上传后还原。
+     */
+    @PostMapping("/restore")
+    @OpsLog(action = "RESTORE_BACKUP", targetType = "BACKUP")
+    public R<Void> restore(@RequestParam("file") MultipartFile file) {
+        try {
+            backupService.restoreFromUpload(file);
+            return R.ok();
+        } catch (IllegalStateException e) {
+            return R.fail(e.getMessage());
+        }
     }
 
     /**

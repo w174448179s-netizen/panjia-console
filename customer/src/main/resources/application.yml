@@ -13,6 +13,11 @@ spring:
     url: jdbc:postgresql://localhost:5432/postgres?TimeZone=Asia/Shanghai
     username: root
     password: root
+  servlet:
+    multipart:
+      # 上传还原备份文件上限，与 nginx client_max_body_size 对齐
+      max-file-size: 100MB
+      max-request-size: 100MB
   flyway:
     enabled: true
     baseline-on-migrate: true

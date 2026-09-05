@@ -10,10 +10,16 @@
 
       <div class="page-header">
         <h3>备份记录</h3>
-        <el-button type="primary" @click="handleBackup">
-          <el-icon><VideoPlay /></el-icon>
-          立即备份
-        </el-button>
+        <div>
+          <el-button type="warning" @click="openRestoreDialog">
+            <el-icon><Upload /></el-icon>
+            上传还原
+          </el-button>
+          <el-button type="primary" @click="handleBackup">
+            <el-icon><VideoPlay /></el-icon>
+            立即备份
+          </el-button>
+        </div>
       </div>
 
       <el-table :data="backupList" style="width: 100%" v-loading="loading">
@@ -39,7 +45,7 @@
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -47,6 +53,12 @@
               :disabled="row.status !== 'SUCCESS'"
               @click="handleDownload(row)"
             >下载</el-button>
+            <el-button
+              type="danger"
+              link
+              :disabled="row.status === 'RUNNING'"
+              @click="handleDelete(row)"
+            >删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,13 +81,40 @@
         <el-button type="primary" @click="startBackup" :loading="backingUp">开始备份</el-button>
       </template>
     </el-dialog>
+    <!-- 上传还原对话框 -->
+    <el-dialog v-model="restoreDialogVisible" title="上传备份文件还原" width="520px">
+      <el-alert
+        title="还原会覆盖当前数据库的全部数据，此操作不可撤销！还原前请确认已对当前数据做好备份。"
+        type="error"
+        :closable="false"
+        style="margin-bottom: 16px"
+      />
+      <el-upload
+        drag
+        :auto-upload="false"
+        :limit="1"
+        accept=".dump,.backup"
+        :on-change="onRestoreFileChange"
+        :on-remove="() => (restoreFile = null)"
+      >
+        <el-icon style="font-size: 40px; color: #909399"><UploadFilled /></el-icon>
+        <div>将备份文件（.dump）拖到此处，或点击选择</div>
+      </el-upload>
+      <template #footer>
+        <el-button @click="restoreDialogVisible = false" :disabled="restoring">取消</el-button>
+        <el-button type="danger" :loading="restoring" :disabled="!restoreFile" @click="startRestore">
+          开始还原
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { get, post } from '@/utils/request'
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
+import type { UploadFile } from 'element-plus'
+import { get, post, del } from '@/utils/request'
 import dayjs from 'dayjs'
 
 const loading = ref(false)
@@ -83,6 +122,10 @@ const backupList = ref<any[]>([])
 const backupDialogVisible = ref(false)
 const backupRemark = ref('')
 const backingUp = ref(false)
+
+const restoreDialogVisible = ref(false)
+const restoreFile = ref<File | null>(null)
+const restoring = ref(false)
 
 function handleBackup() {
   backupRemark.value = ''
@@ -119,6 +162,74 @@ function handleDownload(row: any) {
   document.body.appendChild(a)
   a.click()
   a.remove()
+}
+
+/** 删除备份记录（同时删除服务器上的备份文件） */
+async function handleDelete(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除备份「${row.fileName}」吗？<br/>服务器上的备份文件将一并删除，删除后不可恢复。`,
+      '删除备份',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return // 用户取消
+  }
+  try {
+    await del(`/v1/backups/${row.id}`)
+    ElMessage.success('删除成功')
+    loadBackups()
+  } catch {
+    // 错误提示 request.ts 拦截器已弹出，这里静默
+  }
+}
+
+/** 打开上传还原对话框 */
+function openRestoreDialog() {
+  restoreFile.value = null
+  restoreDialogVisible.value = true
+}
+
+function onRestoreFileChange(file: UploadFile) {
+  restoreFile.value = (file.raw as File) ?? null
+}
+
+/** 上传备份文件并还原（危险操作：覆盖当前数据库所有数据） */
+async function startRestore() {
+  if (!restoreFile.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定要用文件「${restoreFile.value.name}」还原吗？<br/><strong style="color:#f56c6c">当前数据库的所有数据将被覆盖，此操作不可撤销！</strong>`,
+      '还原确认',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确认还原',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return // 用户取消
+  }
+  const loading = ElLoading.service({ text: '正在上传并还原数据库，请勿关闭页面...', background: 'rgba(0,0,0,0.7)' })
+  try {
+    const form = new FormData()
+    form.append('file', restoreFile.value)
+    // 上传 + 还原可能超过 axios 默认 15s 超时，单独放宽到 10 分钟
+    await post('/v1/backups/restore', form, { timeout: 600000 })
+    ElMessage.success('还原完成')
+    restoreDialogVisible.value = false
+    loadBackups()
+  } catch {
+    // 错误提示 request.ts 拦截器已弹出，这里静默
+  } finally {
+    loading.close()
+  }
 }
 
 function formatSize(bytes: number) {

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -221,5 +222,100 @@ public class BackupService {
             throw new IllegalStateException("备份文件已丢失: " + record.getFileName());
         }
         return path;
+    }
+
+    /**
+     * 还原备份（上传备份文件 → pg_restore 覆盖当前数据库，同步执行）
+     * <p>
+     * 还原场景是"换机器 / 数据迁移"：备份文件在别的机器上，通过页面上传后还原，
+     * 不依赖本机备份目录里是否还有该文件。
+     *
+     * @throws IllegalStateException 文件为空 / 保存失败 / 还原失败
+     */
+    public void restoreFromUpload(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalStateException("请选择要上传的备份文件");
+        }
+        String originalName = file.getOriginalFilename();
+        if (originalName == null || !(originalName.endsWith(".dump") || originalName.endsWith(".backup"))) {
+            throw new IllegalStateException("仅支持 pg_dump 自定义格式的备份文件（.dump）");
+        }
+
+        // 上传文件先落临时文件，再交给 pg_restore，完毕即删
+        Path tempFile = null;
+        try {
+            Path dir = Paths.get(backupDir);
+            if (!Files.exists(dir)) {
+                Files.createDirectories(dir);
+            }
+            tempFile = Files.createTempFile(dir, "restore_", ".dump");
+            file.transferTo(tempFile);
+
+            runRestore(tempFile);
+            log.info("Restore from upload completed: originalName={}, size={}", originalName, file.getSize());
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("还原执行失败: " + e.getMessage(), e);
+        } finally {
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (Exception e) {
+                    log.warn("Failed to delete temp restore file: {}", tempFile, e);
+                }
+            }
+        }
+    }
+
+    /**
+     * 执行 pg_restore（--clean --if-exists 覆盖式还原）
+     */
+    private void runRestore(Path path) throws Exception {
+        // 从 JDBC URL 解析 host:port/dbname
+        String host = "localhost";
+        String port = "5432";
+        String dbName = "postgres";
+        String url = datasourceUrl.replace("jdbc:postgresql://", "");
+        int slashIdx = url.indexOf('/');
+        int qIdx = url.indexOf('?');
+        String hostPort = url.substring(0, slashIdx);
+        dbName = qIdx > 0 ? url.substring(slashIdx + 1, qIdx) : url.substring(slashIdx + 1);
+        int colonIdx = hostPort.indexOf(':');
+        if (colonIdx > 0) {
+            host = hostPort.substring(0, colonIdx);
+            port = hostPort.substring(colonIdx + 1);
+        } else {
+            host = hostPort;
+        }
+
+        // --clean --if-exists: 先 DROP 已有对象再重建（覆盖式还原）
+        ProcessBuilder pb = new ProcessBuilder(
+                "pg_restore",
+                "-h", host,
+                "-p", port,
+                "-U", datasourceUsername,
+                "--clean", "--if-exists",
+                "-d", dbName,
+                path.toString()
+        );
+        pb.environment().put("PGPASSWORD", datasourcePassword);
+        pb.redirectErrorStream(true);
+
+        log.warn("Restoring from file {} to {}:{}/{} (this will overwrite the database)", path, host, port, dbName);
+        Process process = pb.start();
+        StringBuilder out = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                out.append(line).append("\n");
+            }
+        }
+        int exitCode = process.waitFor();
+
+        if (exitCode != 0) {
+            log.error("pg_restore failed: {}", out);
+            throw new IllegalStateException("pg_restore failed (exit=" + exitCode + "): " + out);
+        }
     }
 }
