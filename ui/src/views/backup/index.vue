@@ -112,8 +112,13 @@ async function loadBackups() {
 }
 
 function handleDownload(row: any) {
-  // 管理面无鉴权（V1.3），直接 window.open 让浏览器走原生下载
-  window.open(`/api/v1/backups/${row.id}/download`, '_blank')
+  // 用 <a> 标签触发浏览器原生下载：不弹新标签页、不会被弹窗拦截器拦掉
+  const a = document.createElement('a')
+  a.href = `/api/v1/backups/${row.id}/download`
+  a.download = row.fileName || ''
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
 }
 
 function formatSize(bytes: number) {
