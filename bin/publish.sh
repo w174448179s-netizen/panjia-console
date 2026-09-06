@@ -5,9 +5,9 @@
 # 适用场景：改完代码想一次推到服务器,无需手动跑多个脚本
 #
 # 用法：
-#   sh bin/publish.sh <服务器IP> <SSH用户> [镜像标签]
-#   sh bin/publish.sh <服务器IP> <SSH用户> --backend-only
-#   sh bin/publish.sh <服务器IP> <SSH用户> --frontend-only
+#   sh bin/publish.sh                    # 服务器信息读 bin/server.env（推荐）
+#   sh bin/publish.sh [镜像标签] [--backend-only|--frontend-only]
+#   sh bin/publish.sh <服务器IP> <SSH用户> [镜像标签]   # 旧写法，兼容
 #
 # 流程：
 #   1) push-backend.sh  --force-recreate 重建 console 容器
@@ -17,12 +17,23 @@
 
 set -e
 
-SERVER_ADDR="${1:?用法：sh bin/publish.sh <IP> <USER> [tag] [--backend-only|--frontend-only]}"
-SSH_USER="${2:?请提供 SSH 用户名}"
-shift 2
+# ---- 参数：地址/用户可省略，省略时读 bin/server.env ----
+. "$(dirname "$0")/_server-env.sh"
+SERVER_ADDR=""; SSH_USER=""
+case "${1:-}" in
+    [0-9]*.[0-9]*.[0-9]*.[0-9]*)
+        SERVER_ADDR="$1"; shift
+        case "${1:-}" in
+            ""|-*|*.*) ;;   # 空/flag/含点(域名或tag)→不当作用户名
+            *) SSH_USER="$1"; shift ;;
+        esac ;;
+esac
+SERVER_ADDR="${SERVER_ADDR:-${SERVER_IP:?请创建 bin/server.env（模板见 bin/server.env.example），或传入参数 <服务器IP>}}"
+SSH_USER="${SSH_USER:-${SERVER_USER:-ubuntu}}"
 
 # 解析剩余参数：tag (位置) + --backend-only / --frontend-only (flag)
-IMAGE_TAG="v1"
+IMAGE_TAG="${IMAGE_TAG:-v1}"   # 可在 bin/server.env 配置
+INSTALL_DIR="${INSTALL_DIR:-/opt/panjia-console}"   # 可在 bin/server.env 配置
 MODE="full"  # full | backend-only | frontend-only
 for arg in "$@"; do
     case "$arg" in
@@ -116,7 +127,7 @@ fi
 echo ""
 echo "  --- 容器状态 ---"
 ssh -o ConnectTimeout=5 -o BatchMode=yes "${SSH_USER}@${SERVER_ADDR}" \
-    "cd /opt/panjia-console && sudo docker compose ps" 2>&1 | sed 's/^/  /'
+    "cd $INSTALL_DIR && sudo docker compose ps" 2>&1 | sed 's/^/  /'
 
 ELAPSED=$(( $(date +%s) - START ))
 echo ""

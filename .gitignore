@@ -28,6 +28,12 @@ script/keys/*.jks
 script/keys/*.pem
 script/keys/*.bak
 
+# nginx Basic Auth 密码文件（哈希可离线爆破，密码只存服务器和本地）
+deploy/nginx/.htpasswd
+
+# 服务器连接信息（IP/账号，脚本 bin/*.sh 从这里读取）
+bin/server.env
+
 # 环境变量
 .env
 .env.local

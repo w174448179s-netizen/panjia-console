@@ -3,6 +3,8 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
 export default defineConfig({
+  // 后台挂在 /console/ 路径下（官网首页占用 / ），构建产物资源前缀与之一致
+  base: '/console/',
   plugins: [vue()],
   resolve: {
     alias: {

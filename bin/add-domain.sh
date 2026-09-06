@@ -22,11 +22,13 @@
 #   - 不改业务镜像
 #
 # 用法：
-#   sh bin/add-domain.sh <服务器IP> <SSH用户> <域名> [邮箱]
+#   sh bin/add-domain.sh                             # 全部读 bin/server.env（推荐，零参数）
+#   sh bin/add-domain.sh <域名> [邮箱]               # 只覆盖域名
+#   sh bin/add-domain.sh <服务器IP> <SSH用户> <域名> [邮箱]   # 旧写法，兼容
 #
 # 示例：
-#   sh bin/add-domain.sh 118.24.77.11 ubuntu www.panjia.icu
-#   sh bin/add-domain.sh 118.24.77.11 ubuntu www.panjia.icu admin@panjia.icu
+#   sh bin/add-domain.sh www.panjia.icu
+#   sh bin/add-domain.sh www.panjia.icu admin@panjia.icu
 #
 # 前置条件：
 #   1. setup-server.sh 已经以 IP 模式成功跑过
@@ -38,12 +40,22 @@
 
 set -e
 
-# ==================== 参数 ====================
-SERVER_ADDR="${1:?用法：sh bin/add-domain.sh <服务器IP> <SSH用户> <域名> [邮箱]}"
-SSH_USER="${2:?请提供 SSH 用户名（如 ubuntu）}"
-DOMAIN="${3:?请提供域名（如 www.panjia.icu）}"
-CERT_EMAIL="${4:-admin@${DOMAIN#www.}}"
-INSTALL_DIR="/opt/panjia-console"
+# ==================== 参数：地址/用户可省略，省略时读 bin/server.env ====================
+. "$(dirname "$0")/_server-env.sh"
+SERVER_ADDR=""; SSH_USER=""
+case "${1:-}" in
+    [0-9]*.[0-9]*.[0-9]*.[0-9]*)
+        SERVER_ADDR="$1"; shift
+        case "${1:-}" in
+            ""|-*|*.*) ;;   # 空/flag/含点(多半是域名)→不当作用户名
+            *) SSH_USER="$1"; shift ;;
+        esac ;;
+esac
+SERVER_ADDR="${SERVER_ADDR:-${SERVER_IP:?请创建 bin/server.env（模板见 bin/server.env.example），或传入参数 <服务器IP>}}"
+SSH_USER="${SSH_USER:-${SERVER_USER:-ubuntu}}"
+DOMAIN="${1:-${DOMAIN:?请提供域名（如 www.panjia.icu），或在 bin/server.env 配置 DOMAIN}}"
+CERT_EMAIL="${2:-${CERT_EMAIL:-admin@${DOMAIN#www.}}}"
+INSTALL_DIR="${INSTALL_DIR:-/opt/panjia-console}"   # 可在 bin/server.env 配置
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -129,7 +141,7 @@ echo ">>> 4/6：申请证书 + 切换 nginx 配置 + reload"
 # 让本脚本在远程服务器跑多步操作
 ssh "${SSH_USER}@${SERVER_ADDR}" "$REMOTE_BASH" << REMOTE_ADD_DOMAIN
 set -e
-INSTALL_DIR="/opt/panjia-console"
+INSTALL_DIR="$INSTALL_DIR"
 DOMAIN="$DOMAIN"
 CERT_EMAIL="$CERT_EMAIL"
 

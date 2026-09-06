@@ -9,15 +9,16 @@
 #                    域名下来后跑 bin/add-domain.sh <域名> 切换到 HTTPS
 #
 # 用法：
-#   sh bin/setup-server.sh <服务器IP> <SSH用户> <域名|-> <JKS密码> [邮箱] [镜像标签]
+#   sh bin/setup-server.sh <域名|-> <JKS密码> [邮箱] [镜像标签]
+#   （服务器 IP/用户读 bin/server.env；也可用旧写法在最前面显式传入 <服务器IP> <SSH用户>）
 #
 # 示例（完整 HTTPS 模式）：
-#   sh bin/setup-server.sh 118.24.77.11 ubuntu www.panjia.icu MyPass123
-#   sh bin/setup-server.sh 118.24.77.11 ubuntu www.panjia.icu MyPass123 admin@panjia.icu v1
+#   sh bin/setup-server.sh www.panjia.icu MyPass123
+#   sh bin/setup-server.sh www.panjia.icu MyPass123 admin@panjia.icu v1
 #
 # 示例（IP 模式，域名未到）：
-#   sh bin/setup-server.sh 118.24.77.11 ubuntu - MyPass123
-#   # 之后：sh bin/add-domain.sh 118.24.77.11 ubuntu www.panjia.icu
+#   sh bin/setup-server.sh - MyPass123
+#   # 之后：sh bin/add-domain.sh www.panjia.icu 切换到 HTTPS
 #
 # 前置条件：
 #   full 模式：
@@ -69,28 +70,39 @@ for arg in "$@"; do
 done
 set -- "${ARGS[@]}"
 
-SERVER_ADDR="${1:?用法：sh bin/setup-server.sh <服务器IP> <SSH用户> <域名|-> <JKS密码> [邮箱] [镜像标签]}"
-SSH_USER="${2:?请提供 SSH 用户名（如 ubuntu）}"
+# 地址/用户可省略，省略时读 bin/server.env
+. "$(dirname "$0")/_server-env.sh"
+SERVER_ADDR=""; SSH_USER=""
+case "${1:-}" in
+    [0-9]*.[0-9]*.[0-9]*.[0-9]*)
+        SERVER_ADDR="$1"; shift
+        case "${1:-}" in
+            ""|-*|*.*) ;;   # 空/flag/含点(域名)→不当作用户名
+            *) SSH_USER="$1"; shift ;;
+        esac ;;
+esac
+SERVER_ADDR="${SERVER_ADDR:-${SERVER_IP:?请创建 bin/server.env（模板见 bin/server.env.example），或传入参数 <服务器IP>}}"
+SSH_USER="${SSH_USER:-${SERVER_USER:-ubuntu}}"
 
 # 域名可空：填 `-` 或留空 = IP 模式（域名未到，先用 IP 测试）
-if [ -z "${3:-}" ] || [ "${3:-}" = "-" ]; then
+if [ -z "${1:-}" ] || [ "${1:-}" = "-" ]; then
     DOMAIN=""
     MODE="ip-only"
 else
-    DOMAIN="${3}"
+    DOMAIN="${1}"
     MODE="full"
 fi
 
-JKS_PASSWORD="${4:?请提供 JKS 密码（强制必填，不允许默认值，防止仓库泄露的固定密码被复用）}"
-CERT_EMAIL="${5:-}"
+JKS_PASSWORD="${2:?请提供 JKS 密码（强制必填，不允许默认值，防止仓库泄露的固定密码被复用）}"
+CERT_EMAIL="${3:-${CERT_EMAIL:-}}"
 # full 模式默认邮箱 = admin@<domain>；ip-only 模式邮箱无意义，留空
 if [ "$MODE" = "full" ] && [ -z "$CERT_EMAIL" ]; then
     CERT_EMAIL="admin@${DOMAIN#www.}"
 fi
-IMAGE_TAG="${6:-v1}"
+IMAGE_TAG="${4:-${IMAGE_TAG:-v1}}"   # 优先级：参数 > 环境变量 > server.env > v1
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-INSTALL_DIR="/opt/panjia-console"
+INSTALL_DIR="${INSTALL_DIR:-/opt/panjia-console}"   # 可在 bin/server.env 配置
 BACKEND_IMAGE="panjia-console:${IMAGE_TAG}"
 BACKEND_TAR="panjia-console-${IMAGE_TAG}.tar"
 FRONTEND_TAR="panjia-console-web-${IMAGE_TAG}.tar.gz"
@@ -450,7 +462,7 @@ echo ">>> 步骤 5/7：服务器初始化（Docker + Certbot）"
 
 ssh -o ConnectTimeout=10 -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 "${SSH_USER}@${SERVER_ADDR}" "$REMOTE_BASH" << REMOTE_INIT
 set -e
-INSTALL_DIR="/opt/panjia-console"
+INSTALL_DIR="$INSTALL_DIR"
 DOMAIN="$DOMAIN"
 CERT_EMAIL="$CERT_EMAIL"
 
@@ -708,7 +720,7 @@ echo ">>> 步骤 6/7：部署文件并启动"
 
 ssh -o ConnectTimeout=10 -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 "${SSH_USER}@${SERVER_ADDR}" "$REMOTE_BASH" << REMOTE_DEPLOY
 set -e
-INSTALL_DIR="/opt/panjia-console"
+INSTALL_DIR="$INSTALL_DIR"
 DB_PASSWORD='$DB_PASSWORD'
 DB_USER='$DB_USER'
 DB_NAME='$DB_NAME'

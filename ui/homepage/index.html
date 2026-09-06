@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盘家 - 把店上的事，盘得明明白白</title>
+<meta name="description" content="盘家（PANJIA）是面向房产中介的一体化智能管理平台，从薪酬核算起步，覆盖房源、客源、人事与 AI 智能分析。本地部署，数据不出店。">
+<link rel="canonical" href="https://www.panjia.icu/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23ff5a00'/><stop offset='1' stop-color='%23ff8a3d'/></linearGradient></defs><circle cx='100' cy='100' r='96' fill='url(%23g)'/><path d='M52 112 L100 70 L148 112' fill='none' stroke='white' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/><line x1='100' y1='112' x2='100' y2='148' stroke='white' stroke-width='11' stroke-linecap='round'/><line x1='70' y1='112' x2='70' y2='148' stroke='white' stroke-width='8' stroke-linecap='round'/><line x1='130' y1='112' x2='130' y2='148' stroke='white' stroke-width='8' stroke-linecap='round'/></svg>">
+<style>
+:root{
+  /* 品牌色（VI：盘家品牌视觉规范） */
+  --brand:#ff5a00; --brand-light:#ff8a3d; --brand-text:#ff9e6b; --brand-bg:#fff7ed; --brand-line:#fed7aa;
+  --grad:linear-gradient(135deg,#ff5a00,#ff8a3d);
+  /* 中性色 */
+  --ink:#1f2937; --gray:#6b7280; --line:#e5e7eb; --bg:#f5f6fa;
+  /* 语义色（VI 2.2） */
+  --green:#16a34a; --amber:#f59e0b; --red:#dc2626; --blue:#2563eb;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;color:var(--ink);background:#fff;line-height:1.7}
+a{text-decoration:none;color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+section{padding:88px 0}
+h2{font-size:32px;text-align:center;letter-spacing:1px;margin-bottom:12px;font-weight:800}
+.sub{text-align:center;color:var(--gray);margin-bottom:56px;font-size:16px}
+
+/* 品牌标志（VI 1.1：圆底 · 屋顶 + 三立柱） */
+.pj-logo{display:inline-flex;flex-shrink:0}
+
+/* nav */
+nav{position:sticky;top:0;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:10}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .name{display:flex;flex-direction:column;line-height:1.15}
+.brand .name b{font-size:20px;font-weight:800;letter-spacing:2px}
+.brand .name span{font-size:10px;letter-spacing:4px;color:var(--gray)}
+.nav-links{display:flex;gap:32px;font-size:15px;color:var(--gray)}
+.nav-links a:hover{color:var(--brand)}
+.btn{display:inline-block;padding:10px 26px;border-radius:10px;font-size:15px;font-weight:600;transition:.2s}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(255,90,0,.28)}
+.btn-primary:hover{filter:brightness(.94)}
+.btn-ghost{border:1px solid var(--brand);color:var(--brand)}
+.btn-ghost:hover{background:var(--brand-bg)}
+
+/* hero */
+.hero{background:linear-gradient(180deg,#fff7ed 0%,#fff 100%);padding:110px 0 100px;text-align:center}
+.hero h1{font-size:48px;letter-spacing:2px;margin-bottom:14px;font-weight:800}
+.hero .slogan{font-size:17px;color:var(--brand);font-weight:600;letter-spacing:3px;margin-bottom:24px}
+.hero p{color:var(--gray);font-size:19px;max-width:660px;margin:0 auto 40px}
+.hero .btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--brand-line);color:#c2410c;font-size:14px;font-weight:600;padding:6px 16px;border-radius:999px;margin-bottom:28px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:860px;margin:-30px auto 0;position:relative;z-index:1}
+.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px 20px;text-align:center;box-shadow:0 6px 20px rgba(15,23,42,.05)}
+.stat b{display:block;font-size:30px;color:var(--brand);font-weight:800}
+.stat span{color:var(--gray);font-size:14px}
+
+/* modules */
+.mods{background:var(--bg)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.mod{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px 26px;transition:.25s;position:relative}
+.mod:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(15,23,42,.08);border-color:var(--brand-line)}
+.mod .ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:18px}
+.i-orange{background:var(--brand-bg)} .i-green{background:#ecfdf5} .i-purple{background:#f0e9fd} .i-amber{background:#fdf3e0} .i-teal{background:#e0f5f5} .i-slate{background:#eef1f6}
+.mod h3{font-size:19px;margin-bottom:10px;font-weight:700}
+.mod p{color:var(--gray);font-size:14.5px}
+.tag{position:absolute;top:22px;right:22px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px}
+.tag-on{background:#ecfdf5;color:var(--green)}
+.tag-soon{background:#eef1f6;color:var(--gray)}
+
+/* values */
+.vals .grid{grid-template-columns:repeat(3,1fr)}
+.val{padding:26px;border-radius:14px;border:1px solid var(--line)}
+.val b{display:flex;align-items:center;gap:10px;font-size:17px;margin-bottom:8px}
+.val b::before{content:"✓";display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--brand-bg);color:var(--brand);font-size:13px;align-items:center;justify-content:center;flex-shrink:0}
+.val p{color:var(--gray);font-size:14.5px}
+
+/* about */
+.about{background:var(--bg)}
+.about-in{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
+.about h2{text-align:left}
+.about .sub{text-align:left;margin-bottom:24px}
+.about p{color:var(--gray);margin-bottom:16px;font-size:15.5px}
+.about-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:32px}
+.about-card .row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.about-card .row:last-child{border-bottom:none}
+.about-card .row span{color:var(--gray)}
+.about-card .row b{color:var(--ink)}
+
+/* contact（深底用反白规范：浅橙强调文字 #ff9e6b） */
+.contact{text-align:center;background:#0b0f19;color:#f3f4f6;padding:96px 0}
+.contact h2{color:#fff}
+.contact p{opacity:.75;margin-bottom:36px}
+.contact .card{display:inline-block;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:28px 48px;text-align:left}
+.contact .card .row{display:flex;gap:14px;padding:8px 0;font-size:16px}
+.contact .card .row span{opacity:.6;min-width:84px}
+.contact .card .row b{color:var(--brand-text)}
+
+footer{background:#0b0f19;color:#9ca3af;border-top:1px solid rgba(255,255,255,.08);padding:34px 0;font-size:13.5px;text-align:center}
+footer a{color:var(--brand-text)}
+footer a:hover{color:#fff}
+
+@media (max-width:860px){
+  .nav-links{display:none}
+  .hero h1{font-size:32px}
+  section{padding:60px 0}
+  h2{font-size:26px}
+  .stats{grid-template-columns:1fr;max-width:420px}
+  .grid{grid-template-columns:1fr}
+  .about-in{grid-template-columns:1fr}
+  .contact .card{padding:22px 26px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="/">
+      <svg class="pj-logo" width="38" height="38" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="navGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5a00"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient></defs>
+        <circle cx="100" cy="100" r="96" fill="url(#navGrad)"/>
+        <path d="M52 112 L100 70 L148 112" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="100" y1="112" x2="100" y2="148" stroke="#fff" stroke-width="11" stroke-linecap="round"/>
+        <line x1="70" y1="112" x2="70" y2="148" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+        <line x1="130" y1="112" x2="130" y2="148" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+      </svg>
+      <span class="name"><b>盘家</b><span>PANJIA</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="#modules">产品模块</a>
+      <a href="#values">核心价值</a>
+      <a href="#about">关于我们</a>
+      <a href="#contact">联系方式</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="badge"><span class="dot"></span>本地部署 · 数据不出店</span>
+    <h1>房产中介行业<br>一体化智能管理平台</h1>
+    <p class="slogan">「 把店上的事，盘得明明白白 」</p>
+    <p>盘家从薪酬与收支管理起步，逐步覆盖房源、客源、人事与经营分析，帮助中介门店告别 Excel 手工操作，实现业务全链路数字化。</p>
+    <div class="btns">
+      <a class="btn btn-primary" href="#modules">了解产品</a>
+      <a class="btn btn-ghost" href="#contact">联系我们</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><b>6 家</b><span>直营门店稳定运营</span></div>
+    <div class="stat"><b>3 类</b><span>角色薪酬体系全覆盖</span></div>
+    <div class="stat"><b>6 项</b><span>核心能力全程可追溯</span></div>
+  </div>
+</div>
+
+<section class="mods" id="modules">
+  <div class="wrap">
+    <h2>产品模块</h2>
+    <p class="sub">一个平台，管好中介门店的人、财、事</p>
+    <div class="grid">
+      <div class="mod">
+        <span class="tag tag-on">已上线</span>
+        <div class="ico i-orange">💰</div>
+        <h3>薪酬与收支</h3>
+        <p>经纪人、店长、总监三类角色薪酬自动核算，结佣审批全程留痕，部门人工成本与收支一键归集，替代月底手工算薪。</p>
+      </div>
+      <div class="mod">
+        <span class="tag tag-soon">规划中</span>
+        <div class="ico i-green">🏠</div>
+        <h3>房源管理</h3>
+        <p>房源录入、维护与状态跟踪，房源信息统一沉淀，告别散落在个人手里的房源本。</p>
+      </div>
+      <div class="mod">
+        <span class="tag tag-soon">规划中</span>
+        <div class="ico i-purple">👥</div>
+        <h3>客源管理</h3>
+        <p>客源录入、分配与跟进记录，客户资源公司化，跟进过程清晰可查。</p>
+      </div>
+      <div class="mod">
+        <span class="tag tag-soon">规划中</span>
+        <div class="ico i-amber">📋</div>
+        <h3>人事管理</h3>
+        <p>入职、转正、调店、离职全周期管理，员工档案与历史记录自动沉淀，晋升调岗不再靠人工追溯。</p>
+      </div>
+      <div class="mod">
+        <span class="tag tag-soon">规划中</span>
+        <div class="ico i-teal">🤖</div>
+        <h3>AI 智能分析</h3>
+        <p>智能业绩预测、异常自动识别、自然语言报表查询，让管理决策有据可依。</p>
+      </div>
+      <div class="mod">
+        <span class="tag tag-soon">规划中</span>
+        <div class="ico i-slate">📊</div>
+        <h3>数据分析</h3>
+        <p>经营报表、利润分析、趋势预测，门店经营状况一目了然。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="vals" id="values">
+  <div class="wrap">
+    <h2>核心价值</h2>
+    <p class="sub">每一笔数据都算得清、查得到、改得对</p>
+    <div class="grid">
+      <div class="val"><b>算得对</b><p>薪酬规则由系统统一执行，复杂提成、保底、扣款自动计算，杜绝手工公式出错。</p></div>
+      <div class="val"><b>查得到</b><p>每笔工资可逐级追溯到结佣原始数据，"这笔钱从哪来"一句话说得清。</p></div>
+      <div class="val"><b>改得了</b><p>差错走审批流程修正，历史记录完整保留，不破坏任何已锁定数据。</p></div>
+      <div class="val"><b>收得全</b><p>提成、奖金、补贴等收入项完整覆盖，员工实际收入如实反映。</p></div>
+      <div class="val"><b>扣得清</b><p>社保、考勤、积分等扣款项自动归集，每一笔扣款有据可查。</p></div>
+      <div class="val"><b>归集准</b><p>部门收支报表由员工明细自动汇总生成，汇总数与明细双向可核对。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="about" id="about">
+  <div class="wrap about-in">
+    <div>
+      <h2>关于盘家</h2>
+      <p class="sub">扎根成都，服务一线</p>
+      <p>盘家科技是贝壳平台合作商，旗下「富房花照天街」在成都运营 6 家直营门店，覆盖龙湖店、云庭店、锦城名都店、长庆店、西派少城店及租赁部。</p>
+      <p>盘家诞生于我们自己的日常经营——每月底算薪、对账、核成本的切肤之痛，让我们决定把多年沉淀的业务规则做成系统。自己先用起来，再开放给行业。</p>
+    </div>
+    <div class="about-card">
+      <div class="row"><span>公司</span><b>盘家科技</b></div>
+      <div class="row"><span>品牌</span><b>富房 · 花照天街</b></div>
+      <div class="row"><span>合作平台</span><b>贝壳</b></div>
+      <div class="row"><span>运营城市</span><b>成都</b></div>
+      <div class="row"><span>直营门店</span><b>6 家</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="contact" id="contact">
+  <div class="wrap">
+    <h2>联系我们</h2>
+    <p>如果您正在为门店的薪酬核算与经营管理发愁，欢迎交流</p>
+    <div class="card">
+      <div class="row"><span>公司</span><b>盘家科技</b></div>
+      <div class="row"><span>官网</span><b>www.panjia.icu</b></div>
+      <div class="row"><span>地址</span><b>四川省成都市</b></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    © 2026 盘家 · PANJIA &nbsp;|&nbsp; <a href="/">官网首页</a>
+  </div>
+</footer>
+
+</body>
+</html>

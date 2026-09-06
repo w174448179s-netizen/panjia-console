@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盘家 · 品牌视觉规范（VI）</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#1f2937;line-height:1.7;padding:40px 20px;}
+  .wrap{max-width:980px;margin:0 auto;}
+  h1{font-size:30px;font-weight:800;letter-spacing:1px;}
+  h1 .sub{font-size:14px;color:#6b7280;font-weight:400;letter-spacing:3px;display:block;margin-top:8px;}
+  h2{font-size:22px;font-weight:800;margin:44px 0 14px;padding-left:12px;border-left:5px solid #ff5a00;}
+  h3{font-size:16px;font-weight:700;margin:24px 0 8px;color:#111827;}
+  .card{background:#fff;border-radius:14px;padding:26px 28px;box-shadow:0 2px 10px rgba(15,23,42,.06);margin-bottom:20px;}
+  .muted{color:#6b7280;font-size:14px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #eef0f4;vertical-align:middle;}
+  th{background:#fafbfc;color:#374151;font-weight:700;}
+  code{background:#eef2ff;color:#4338ca;padding:1px 6px;border-radius:5px;font-size:13px;font-family:ui-monospace,Menlo,monospace;}
+  .logo-grid{display:flex;gap:22px;flex-wrap:wrap;align-items:center;}
+  .logo-box{display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px;border:1px dashed #d1d5db;border-radius:12px;background:#fafbfc;}
+  .logo-box .cap{font-size:12px;color:#6b7280;letter-spacing:1px;}
+  .swatch{display:flex;align-items:center;gap:10px;margin:8px 0;}
+  .sw-ic{width:46px;height:46px;border-radius:9px;flex-shrink:0;border:1px solid rgba(0,0,0,.06);}
+  .sw-name{font-weight:700;font-size:14px;}
+  .sw-hex{font-size:12px;color:#6b7280;font-family:ui-monospace,Menlo,monospace;}
+  .sw-use{font-size:12.5px;color:#374151;}
+  .tag{display:inline-block;background:#fff7ed;color:#c2410c;font-size:12px;padding:3px 10px;border-radius:20px;border:1px solid #fed7aa;margin:3px 4px 3px 0;font-weight:600;}
+  .use{font-size:13.5px;color:#374151;}
+  .dos-donts{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:700px){.dos-donts{grid-template-columns:1fr;}}
+  .ok,.no{border-radius:10px;padding:14px 16px;font-size:13.5px;}
+  .ok{background:#ecfdf5;border:1px solid #a7f3d0;}
+  .no{background:#fef2f2;border:1px solid #fecaca;}
+  .ok b{color:#047857;}.no b{color:#b91c1c;}
+  ul{padding-left:20px;margin:8px 0;}
+  li{margin:5px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>盘家 · 品牌视觉规范
+    <span class="sub">PANJIA BRAND GUIDELINES · 2026</span>
+  </h1>
+  <p class="muted" style="margin-top:10px;">产品名「盘家」（盘 = 房源盘点 · 家 = 门店）。本规范统一定义 Logo、色彩、字体与应用规则，作为所有界面、安装包、手册、推广物料的统一视觉基准。</p>
+
+  <!-- ① Logo -->
+  <h2>① Logo</h2>
+  <div class="card">
+    <h3>1.1 主标志（全彩版）</h3>
+    <div class="logo-grid">
+      <div class="logo-box">
+        <svg width="110" height="110" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="pjGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ff5a00"/>
+              <stop offset="1" stop-color="#ff8a3d"/>
+            </linearGradient>
+          </defs>
+          <!-- 圆底 -->
+          <circle cx="100" cy="100" r="96" fill="url(#pjGrad)"/>
+          <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(0,0,0,.06)" stroke-width="2"/>
+          <!-- 屋顶（家）：描边路径 -->
+          <path d="M52 112 L100 70 L148 112" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- 房身（盘/看板窗格）：三根立柱 -->
+          <line x1="100" y1="112" x2="100" y2="148" stroke="#fff" stroke-width="11" stroke-linecap="round"/>
+          <line x1="70" y1="112" x2="70" y2="148" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+          <line x1="130" y1="112" x2="130" y2="148" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+        </svg>
+        <div class="cap">主标志（彩色）· 用于浅底</div>
+      </div>
+      <div class="logo-box" style="background:#111827;">
+        <svg width="110" height="110" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="96" fill="#1f2937"/>
+          <path d="M52 112 L100 70 L148 112" fill="none" stroke="#ff8a3d" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="100" y1="112" x2="100" y2="148" stroke="#ff8a3d" stroke-width="11" stroke-linecap="round"/>
+          <line x1="70" y1="112" x2="70" y2="148" stroke="#ff8a3d" stroke-width="8" stroke-linecap="round"/>
+          <line x1="130" y1="112" x2="130" y2="148" stroke="#ff8a3d" stroke-width="8" stroke-linecap="round"/>
+        </svg>
+        <div class="cap" style="color:#9ca3af;">深底反白版 · 登录页/深色界面用</div>
+      </div>
+      <div class="logo-box">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <svg width="76" height="76" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="96" fill="#ff5a00"/>
+            <path d="M52 112 L100 70 L148 112" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="100" y1="112" x2="100" y2="148" stroke="#fff" stroke-width="11" stroke-linecap="round"/>
+            <line x1="70" y1="112" x2="70" y2="148" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+            <line x1="130" y1="112" x2="130" y2="148" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+          </svg>
+          <div style="font-size:26px;font-weight:800;letter-spacing:2px;">盘家</div>
+          <div style="font-size:11px;letter-spacing:4px;color:#6b7280;">PANJIA</div>
+        </div>
+        <div class="cap">标志 + 字标（横排）· 主用</div>
+      </div>
+    </div>
+
+    <h3>1.2 设计释义</h3>
+    <ul>
+      <li><b>图形</b>：圆形底上的<b>「屋顶 + 三根立柱」</b>——屋顶是"家/门店"，三根立柱既是房体、又像<b>数据看板的窗格</b>，寓意"把门店的事盘成看得懂的看板"。</li>
+      <li><b>圆底</b>：象征"盘点、滚动、循环"，呼应品牌动作"盘"。</li>
+      <li><b>三根柱</b>：暗合产品三大核心能力——<b>房源看板 · 到期提醒 · 工资查询</b>。</li>
+      <li><b>配色</b>：暖橙渐变（#ff5a00→#ff8a3d），温暖、踏实、中介行业亲和，又带一点"数据热度"。</li>
+    </ul>
+
+    <h3>1.3 标准色值</h3>
+    <div class="swatch"><div class="sw-ic" style="background:linear-gradient(135deg,#ff5a00,#ff8a3d);"></div><div><div class="sw-name">品牌橙（渐变）</div><div class="sw-hex">#ff5a00 → #ff8a3d</div><div class="sw-use">主色，用于 Logo 底、按钮、高亮、强调</div></div></div>
+    <div class="swatch"><div class="sw-ic" style="background:#ff5a00;"></div><div><div class="sw-name">品牌橙（纯色）</div><div class="sw-hex">#ff5a00</div><div class="sw-use">纯色场景、文本高亮</div></div></div>
+    <div class="swatch"><div class="sw-ic" style="background:#ff8a3d;"></div><div><div class="sw-name">品牌浅橙</div><div class="sw-hex">#ff8a3d</div><div class="sw-use">渐变亮端、次级高亮</div></div></div>
+    <div class="swatch"><div class="sw-ic" style="background:#ff9e6b;"></div><div><div class="sw-name">浅橙文字</div><div class="sw-hex">#ff9e6b</div><div class="sw-use">深底上的强调文字/链接</div></div></div>
+  </div>
+
+  <!-- ② 色彩 -->
+  <h2>② 色彩系统</h2>
+  <div class="card">
+    <h3>2.1 界面配色（深浅双主题）</h3>
+    <table>
+      <tr><th>用途</th><th>亮色主题</th><th>深色主题</th><th>说明</th></tr>
+      <tr><td>页面底色</td><td>#f5f6fa</td><td>#0b0f19 / #111827</td><td>看板大底色</td></tr>
+      <tr><td>卡片</td><td>#ffffff</td><td>rgba(255,255,255,.05)</td><td>数据卡片/面板</td></tr>
+      <tr><td>主文字</td><td>#1f2937</td><td>#f3f4f6</td><td>标题/正文主色</td></tr>
+      <tr><td>次要文字</td><td>#6b7280</td><td>#9ca3af</td><td>说明/辅助文字</td></tr>
+      <tr><td>边框</td><td>#e5e7eb</td><td>rgba(255,255,255,.12)</td><td>分割线/描边</td></tr>
+    </table>
+    <h3>2.2 语义色（状态）</h3>
+    <div class="swatch"><div class="sw-ic" style="background:#16a34a;"></div><div><div class="sw-name">健康绿</div><div class="sw-hex">#16a34a</div><div class="sw-use">正常/优质/通过</div></div></div>
+    <div class="swatch"><div class="sw-ic" style="background:#f59e0b;"></div><div><div class="sw-name">预警黄</div><div class="sw-hex">#f59e0b</div><div class="sw-use">即将到期/待跟进/提示</div></div></div>
+    <div class="swatch"><div class="sw-ic" style="background:#dc2626;"></div><div><div class="sw-name">风险红</div><div class="sw-hex">#dc2626</div><div class="sw-use">已超期/高危/流失/警示</div></div></div>
+    <div class="swatch"><div class="sw-ic" style="background:#2563eb;"></div><div><div class="sw-name">信息蓝</div><div class="sw-hex">#2563eb</div><div class="sw-use">链接/信息/中性强调</div></div></div>
+  </div>
+
+  <!-- ③ 字体 -->
+  <h2>③ 字体与排版</h2>
+  <div class="card">
+    <ul>
+      <li><b>中文</b>：`PingFang SC` → `Microsoft YaHei` → 系统默认（覆盖全部界面）。</li>
+      <li><b>西文/数字</b>：系统 `-apple-system` / `Segoe UI`（看板数字建议等宽字体 `ui-monospace` 便于对齐）。</li>
+      <li><b>标题</b>：字重 700–800，字距 1px；<b>正文</b>：字重 400–500；<b>辅助</b>：字号小 1 档，颜色用次要色。</li>
+      <li><b>数字</b>：KPI 大数字建议 28px+ 超粗，增强"一眼看懂"。</li>
+    </ul>
+  </div>
+
+  <!-- ④ 应用 -->
+  <h2>④ 应用规范</h2>
+  <div class="card">
+    <h3>4.1 使用要点</h3>
+    <div class="tag">Logo 圆底默认全彩</div>
+    <div class="tag">深底用反白版</div>
+    <div class="tag">最小尺寸 24px</div>
+    <div class="tag">周边留白 ≥ 圆直径 1/8</div>
+    <div class="tag">界面主色用于按钮/高亮</div>
+    <div class="tag">状态色固定：绿/黄/红/蓝</div>
+    <div class="tag">数据不出店 · 本地部署</div>
+    <h3 style="margin-top:20px;">4.2 应用范围（已落地）</h3>
+    <p class="use">本 VI 已统一应用到全部 6 个原型界面：登录欢迎页 · 管理后台 · 房源经营看板 · 负责人看板 · 经纪人看板 · 员工工资查询。</p>
+    <h3 style="margin-top:20px;">4.3 品牌口号（副标题，可选用）</h3>
+    <p class="use">「把店上的事，盘得明明白白」 / 「本地部署 · 数据不出店」</p>
+    <h3 style="margin-top:20px;">4.4 正确 vs 错误</h3>
+    <div class="dos-donts">
+      <div class="ok"><b>✓ 正确</b><ul><li>彩色 Logo 用于浅底</li><li>深底用反白/浅橙版</li><li>保持圆底完整</li><li>与文字组合同比例缩放</li></ul></div>
+      <div class="no"><b>✗ 避免</b><ul><li>拉伸/变形</li><li>改变圆底颜色或渐变</li><li>叠加在花哨背景上</li><li>缩小到无法辨认</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card muted" style="text-align:center;">© 2026 盘家 · PANJIA 品牌视觉规范　|　所有界面、安装包、手册、物料统一遵循</div>
+
+</div>
+</body>
+</html>

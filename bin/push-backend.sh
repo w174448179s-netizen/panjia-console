@@ -6,11 +6,13 @@
 #          跳过 setup-server.sh 的全流程检测,只更新后端容器
 #
 # 用法：
-#   sh bin/push-backend.sh <服务器IP> <SSH用户> [镜像标签]
+#   sh bin/push-backend.sh                    # 服务器信息读 bin/server.env（推荐）
+#   sh bin/push-backend.sh [镜像标签]
+#   sh bin/push-backend.sh <服务器IP> <SSH用户> [镜像标签]   # 旧写法，兼容
 #
 # 示例：
-#   sh bin/push-backend.sh 118.24.77.11 ubuntu
-#   sh bin/push-backend.sh 118.24.77.11 ubuntu v2
+#   sh bin/push-backend.sh
+#   sh bin/push-backend.sh v2
 #
 # 前提：服务器已经跑过 setup-server.sh 一次(INSTALL_DIR + docker 已就绪)
 # 不会动：nginx 容器、前端 web/dist、postgres 数据、.env、JKS
@@ -19,13 +21,23 @@
 
 set -e
 
-# ---- 参数 ----
-SERVER_ADDR="${1:?用法：sh bin/push-backend.sh <服务器IP> <SSH用户> [镜像标签]}"
-SSH_USER="${2:?请提供 SSH 用户名（如 ubuntu）}"
-IMAGE_TAG="${3:-v1}"
+# ---- 参数：地址/用户可省略，省略时读 bin/server.env ----
+. "$(dirname "$0")/_server-env.sh"
+SERVER_ADDR=""; SSH_USER=""
+case "${1:-}" in
+    [0-9]*.[0-9]*.[0-9]*.[0-9]*)
+        SERVER_ADDR="$1"; shift
+        case "${1:-}" in
+            ""|-*|*.*) ;;   # 空/flag/含点(域名或tag)→不当作用户名
+            *) SSH_USER="$1"; shift ;;
+        esac ;;
+esac
+SERVER_ADDR="${SERVER_ADDR:-${SERVER_IP:?请创建 bin/server.env（模板见 bin/server.env.example），或传入参数 <服务器IP>}}"
+SSH_USER="${SSH_USER:-${SERVER_USER:-ubuntu}}"
+IMAGE_TAG="${1:-${IMAGE_TAG:-v1}}"   # 优先级：参数 > 环境变量 > server.env > v1
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-INSTALL_DIR="/opt/panjia-console"
+INSTALL_DIR="${INSTALL_DIR:-/opt/panjia-console}"   # 可在 bin/server.env 配置
 CACHE_DIR="$PROJECT_DIR/.workbuddy/cache"
 BACKEND_IMAGE="panjia-console:${IMAGE_TAG}"
 BACKEND_TAR="panjia-console-${IMAGE_TAG}.tar"

@@ -59,7 +59,8 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  // BASE_URL 跟随 vite base（/console/），保证部署在子路径时路由正常
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
