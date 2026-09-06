@@ -60,6 +60,7 @@ public class CheckService {
         LicenseErrorCode restrictReason = null;
         LicenseJwtClaims claims = null;
         AuthCode authCode = null;
+        LicenseContent currentContent = null;
         List<String> capabilities = Collections.emptyList();
 
         try {
@@ -79,7 +80,7 @@ public class CheckService {
             }
 
             // 第三步：licenseVersion 一致性校验（⑤）
-            LicenseContent currentContent = licenseContentMapper.selectCurrent(authCode.getId());
+            currentContent = licenseContentMapper.selectCurrent(authCode.getId());
             if (currentContent == null
                     || !currentContent.getLicenseVersion().equals(claims.getLicenseVersion())) {
                 clientMode = ClientMode.RESTRICT;
@@ -167,9 +168,10 @@ public class CheckService {
                 .clientMode(clientMode.name())
                 .restrictCode(restrictReason != null ? restrictReason.getCode() : null)
                 .capabilities(capabilities)
-                .maxStores(claims != null ? claims.getMaxStores() : null)
-                .maxUsers(claims != null ? claims.getMaxUsers() : null)
-                .endDate(claims != null ? claims.getEndDate() : null)
+                // ★ 配额从数据库 currentContent 读取（续期后不重新激活也能拿到最新值）
+                .maxStores(currentContent != null ? currentContent.getMaxStores() : (claims != null ? claims.getMaxStores() : null))
+                .maxUsers(currentContent != null ? currentContent.getMaxUsers() : (claims != null ? claims.getMaxUsers() : null))
+                .endDate(currentContent != null ? currentContent.getEndDate() : (claims != null ? claims.getEndDate() : null))
                 .build();
     }
 

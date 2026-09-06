@@ -10,6 +10,7 @@ import com.panjia.console.common.exception.LicenseException;
 import com.panjia.console.common.util.AuthCodeGenerator;
 import com.panjia.console.license.api.dto.CreateLicenseRequest;
 import com.panjia.console.license.api.dto.CreateLicenseResult;
+import com.panjia.console.license.api.dto.RenewLicenseRequest;
 import com.panjia.console.license.api.dto.RestoreResult;
 import com.panjia.console.license.domain.AuthCode;
 import com.panjia.console.license.domain.Blacklist;
@@ -175,16 +176,19 @@ public class LicenseService {
         entity.setUpdatedAt(OffsetDateTime.now());
         authCodeMapper.updateById(entity);
 
-        // 写入黑名单（REVOKE 原因）
-        Blacklist blacklist = new Blacklist();
-        blacklist.setAuthCodeId(entity.getId());
-        blacklist.setReason(BlacklistReason.REVOKE.name());
-        blacklist.setCreatedBy("system");
-        try {
+        // 写入/更新黑名单（REVOKE 原因）
+        // t_blacklist.auth_code_id 是 UNIQUE，已存在记录（如 MULTI_INSTANCE）时更新 reason 为 REVOKE
+        Blacklist existingBl = blacklistMapper.selectByAuthCodeId(entity.getId());
+        if (existingBl != null) {
+            existingBl.setReason(BlacklistReason.REVOKE.name());
+            existingBl.setCreatedBy("system");
+            blacklistMapper.updateById(existingBl);
+        } else {
+            Blacklist blacklist = new Blacklist();
+            blacklist.setAuthCodeId(entity.getId());
+            blacklist.setReason(BlacklistReason.REVOKE.name());
+            blacklist.setCreatedBy("system");
             blacklistMapper.insert(blacklist);
-        } catch (DuplicateKeyException e) {
-            // 已在黑名单中，忽略（幂等）
-            log.warn("Blacklist entry already exists for authCodeId={}", entity.getId());
         }
 
         // 记录告警
@@ -246,8 +250,18 @@ public class LicenseService {
 
         // 3. 新增 license_content（版本 +1，旧 JWT 立即失效）
         LicenseContent current = licenseContentMapper.selectCurrent(entity.getId());
-        int newVersion = (current != null ? current.getLicenseVersion() : 0) + 1;
+        // 用 max(license_version) 计算新版本，避免 current 为 null 时与已存在版本冲突
+        int maxVersion = licenseContentMapper.selectMaxVersion(entity.getId());
+        int newVersion = maxVersion + 1;
         int keyVersion = signatureEngine.getCurrentKeyVersion();
+
+        // ★ 先将旧版本置为非当前，再插入新版本（避免违反 is_current=TRUE 的 partial unique index）
+        if (current != null) {
+            current.setIsCurrent(false);
+            current.setExpiredAt(now);
+            current.setUpdatedAt(now);
+            licenseContentMapper.updateById(current);
+        }
 
         LicenseContent newContent = new LicenseContent();
         newContent.setAuthCodeId(entity.getId());
@@ -265,14 +279,6 @@ public class LicenseService {
         newContent.setIsCurrent(true);
         newContent.setEffectiveAt(now);
         licenseContentMapper.insert(newContent);
-
-        // 将旧版本置为非当前
-        if (current != null) {
-            current.setIsCurrent(false);
-            current.setExpiredAt(now);
-            current.setUpdatedAt(now);
-            licenseContentMapper.updateById(current);
-        }
 
         // 记录告警
         alertService.createAlert(
@@ -292,6 +298,96 @@ public class LicenseService {
                 .licenseVersion(newVersion)
                 .restoredAt(now)
                 .build();
+    }
+
+    /**
+     * 续期授权（不新增版本，旧 JWT 不失效）
+     * <p>
+     * 更新 t_auth_code 与当前 t_license_content 的授权参数。
+     * license_version 不变，客户端持有的 JWT 继续有效；
+     * 客户端下次 check 时通过响应获取最新配额。
+     * <p>
+     * 前置：授权码存在且状态非 REVOKED（已吊销需先恢复）。
+     *
+     * @param req 续期请求
+     */
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public void renew(RenewLicenseRequest req) {
+        AuthCode entity = authCodeMapper.selectByAuthCodeForUpdate(req.getAuthCode());
+        if (entity == null) {
+            throw new LicenseException(LicenseErrorCode.AUTH_CODE_NOT_FOUND);
+        }
+
+        // 已吊销的授权不能续期，需先恢复
+        if (AuthCodeStatus.REVOKED.name().equals(entity.getStatus())) {
+            throw new IllegalStateException("已吊销的授权不能续期，请先恢复");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+
+        // 1. 更新 t_auth_code（仅更新传入的非空字段）
+        if (req.getEndDate() != null) {
+            entity.setEndDate(req.getEndDate());
+        }
+        if (req.getVersion() != null) {
+            entity.setVersion(req.getVersion());
+        }
+        if (req.getMaxStores() != null) {
+            entity.setMaxStores(req.getMaxStores());
+        }
+        if (req.getMaxUsers() != null) {
+            entity.setMaxUsers(req.getMaxUsers());
+        }
+        if (req.getCapabilities() != null) {
+            entity.setCapabilities(toJson(req.getCapabilities()));
+        }
+        if (req.getMaintenanceEndDate() != null) {
+            entity.setMaintenanceEndDate(req.getMaintenanceEndDate());
+        }
+        entity.setUpdatedAt(now);
+        authCodeMapper.updateById(entity);
+
+        // 2. 同步更新当前 t_license_content（check 接口从这里读 capabilities/配额）
+        LicenseContent current = licenseContentMapper.selectCurrent(entity.getId());
+        if (current != null) {
+            if (req.getEndDate() != null) {
+                current.setEndDate(req.getEndDate());
+            }
+            if (req.getVersion() != null) {
+                current.setVersion(req.getVersion());
+            }
+            if (req.getMaxStores() != null) {
+                current.setMaxStores(req.getMaxStores());
+            }
+            if (req.getMaxUsers() != null) {
+                current.setMaxUsers(req.getMaxUsers());
+            }
+            if (req.getCapabilities() != null) {
+                current.setCapabilities(toJson(req.getCapabilities()));
+            }
+            if (req.getMaintenanceEndDate() != null) {
+                current.setMaintenanceEndDate(req.getMaintenanceEndDate());
+            }
+            current.setUpdatedAt(now);
+            licenseContentMapper.updateById(current);
+        }
+
+        // 3. 记录告警
+        alertService.createAlert(
+                entity.getCustomerNo(),
+                entity.getId(),
+                "LICENSE_RENEWED",
+                com.panjia.console.common.enums.AlertTrigger.SERVER_DECISION.name(),
+                "INFO",
+                "授权已续期",
+                String.format("{\"authCode\":\"%s\",\"reason\":\"%s\",\"endDate\":\"%s\"}",
+                        AuthCodeGenerator.mask(req.getAuthCode()),
+                        req.getReason() != null ? req.getReason() : "",
+                        req.getEndDate())
+        );
+
+        log.info("License renewed: authCode={}, endDate={}",
+                AuthCodeGenerator.mask(req.getAuthCode()), req.getEndDate());
     }
 
     /**

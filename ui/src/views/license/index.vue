@@ -55,10 +55,11 @@
             {{ formatTime(row.issueAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="340" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 'ACTIVE' || row.status === 'REBINDING'">
               <el-button type="primary" link @click="handleRebind(row)">换机</el-button>
+              <el-button type="success" link @click="handleRenew(row)">续期</el-button>
             </template>
             <template v-if="row.status === 'REBINDING'">
               <el-button type="success" link @click="handleCancelRebind(row)">取消换机</el-button>
@@ -139,6 +140,56 @@
         <el-button type="primary" @click="handleIssueSubmit" :loading="issuing">签发</el-button>
       </template>
     </el-dialog>
+
+    <!-- 续期对话框 -->
+    <el-dialog v-model="renewDialogVisible" title="续期授权" width="640px">
+      <el-alert
+        title="续期不新增授权版本，客户端持有 JWT 继续有效，下次 check 时自动获取最新参数。"
+        type="info"
+        :closable="false"
+        style="margin-bottom: 16px"
+      />
+      <el-form :model="renewForm" :rules="renewRules" ref="renewFormRef" label-width="120px">
+        <el-form-item label="授权码">
+          <el-tag>{{ renewForm.authCode }}</el-tag>
+        </el-form-item>
+        <el-form-item label="客户编号">
+          <span>{{ renewForm.customerNo }}</span>
+        </el-form-item>
+        <el-form-item label="到期日期" prop="endDate">
+          <el-date-picker v-model="renewForm.endDate" type="date" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="版本套餐">
+          <el-input v-model="renewForm.version" placeholder="留空则保持不变" />
+        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="最大门店数">
+              <el-input-number v-model="renewForm.maxStores" :min="1" style="width: 100%" placeholder="留空不变" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="最大用户数">
+              <el-input-number v-model="renewForm.maxUsers" :min="1" style="width: 100%" placeholder="留空不变" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="能力位">
+          <el-select v-model="renewForm.capabilities" multiple style="width: 100%" placeholder="留空则保持不变">
+            <el-option label="IM 即时通讯" value="IM" />
+            <el-option label="AI 智能助手" value="AI" />
+            <el-option label="BI 报表分析" value="BI" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="续期原因">
+          <el-input v-model="renewForm.reason" placeholder="请输入续期原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="renewDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleRenewSubmit" :loading="renewing">确认续期</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -162,6 +213,10 @@ const statusFilter = ref('')
 const issueDialogVisible = ref(false)
 const issuing = ref(false)
 const issueFormRef = ref<FormInstance>()
+
+const renewDialogVisible = ref(false)
+const renewing = ref(false)
+const renewFormRef = ref<FormInstance>()
 
 /** 前端生成 requestId 作为幂等键（F1 冻结规则）
  *  crypto.randomUUID 仅 secure context（HTTPS/localhost）可用，
@@ -192,6 +247,22 @@ const issueForm = reactive({
 const issueRules: FormRules = {
   customerNo: [{ required: true, message: '请输入客户编号', trigger: 'blur' }],
   licenseType: [{ required: true, message: '请选择授权类型', trigger: 'change' }]
+}
+
+/** 续期表单 */
+const renewForm = reactive({
+  authCode: '',
+  customerNo: '',
+  endDate: null as Date | null,
+  version: '',
+  maxStores: null as number | null,
+  maxUsers: null as number | null,
+  capabilities: [] as string[],
+  reason: ''
+})
+
+const renewRules: FormRules = {
+  endDate: [{ required: true, message: '请选择到期日期', trigger: 'change' }]
 }
 
 /** 加载签发流水列表 */
@@ -278,6 +349,48 @@ async function handleRestore(row: any) {
   } catch {
     // 用户取消
   }
+}
+
+/** 打开续期对话框 */
+function handleRenew(row: any) {
+  Object.assign(renewForm, {
+    authCode: row.authCode,
+    customerNo: row.customerNo,
+    endDate: row.endDate ? dayjs(row.endDate).toDate() : null,
+    version: '',
+    maxStores: null,
+    maxUsers: null,
+    capabilities: [],
+    reason: ''
+  })
+  renewDialogVisible.value = true
+}
+
+/** 提交续期 */
+async function handleRenewSubmit() {
+  if (!renewFormRef.value) return
+  await renewFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    renewing.value = true
+    try {
+      const payload: any = {
+        authCode: renewForm.authCode,
+        endDate: renewForm.endDate
+      }
+      if (renewForm.version) payload.version = renewForm.version
+      if (renewForm.maxStores != null) payload.maxStores = renewForm.maxStores
+      if (renewForm.maxUsers != null) payload.maxUsers = renewForm.maxUsers
+      if (renewForm.capabilities.length > 0) payload.capabilities = renewForm.capabilities
+      if (renewForm.reason) payload.reason = renewForm.reason
+
+      await post('/v1/license-mgmt/renew', payload)
+      ElMessage.success('续期成功')
+      renewDialogVisible.value = false
+      loadData()
+    } finally {
+      renewing.value = false
+    }
+  })
 }
 
 /** 换机 */

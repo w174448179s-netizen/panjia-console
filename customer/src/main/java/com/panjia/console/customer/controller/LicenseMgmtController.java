@@ -7,6 +7,7 @@ import com.panjia.console.customer.domain.AuthIssueRecord;
 import com.panjia.console.customer.service.LicenseMgmtService;
 import com.panjia.console.license.api.dto.CreateLicenseRequest;
 import com.panjia.console.license.api.dto.CreateLicenseResult;
+import com.panjia.console.license.api.dto.RenewLicenseRequest;
 import com.panjia.console.license.api.dto.RestoreResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,18 @@ public class LicenseMgmtController {
     public R<RestoreResult> restore(@PathVariable String authCode,
                                     @RequestParam(defaultValue = "运营恢复") String reason) {
         return R.ok(licenseMgmtService.restoreLicense(authCode, reason));
+    }
+
+    /**
+     * 续期授权（不新增版本，旧 JWT 不失效）
+     * <p>
+     * 更新授权参数（到期日期、配额、能力位、套餐），客户端下次 check 时自动获取最新值。
+     */
+    @PostMapping("/renew")
+    @OpsLog(action = "RENEW_LICENSE", targetType = "AUTH_CODE")
+    public R<Void> renew(@Valid @RequestBody RenewLicenseRequest req) {
+        licenseMgmtService.renewLicense(req);
+        return R.ok();
     }
 
     /**

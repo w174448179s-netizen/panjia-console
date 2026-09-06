@@ -7,6 +7,7 @@ import com.panjia.console.license.api.dto.BlacklistView;
 import com.panjia.console.license.api.dto.CreateLicenseRequest;
 import com.panjia.console.license.api.dto.CreateLicenseResult;
 import com.panjia.console.license.api.dto.HeartbeatSnapshot;
+import com.panjia.console.license.api.dto.RenewLicenseRequest;
 import com.panjia.console.license.api.dto.RestoreResult;
 
 /**
@@ -52,6 +53,17 @@ public interface LicenseEngine {
      * @return 恢复结果（含新版本号）
      */
     RestoreResult restore(String authCode, String reason);
+
+    /**
+     * 续期授权（不新增版本，旧 JWT 不失效）
+     * <p>
+     * 更新 t_auth_code 与当前 t_license_content 的授权参数（到期日期、配额、能力位、套餐）。
+     * license_version 不变，客户端持有的 JWT 继续有效；
+     * 客户端下次 check 时通过响应获取最新配额。
+     *
+     * @param req 续期请求
+     */
+    void renew(RenewLicenseRequest req);
 
     /**
      * 换机（使当前指纹失效，授权进入 REBINDING）

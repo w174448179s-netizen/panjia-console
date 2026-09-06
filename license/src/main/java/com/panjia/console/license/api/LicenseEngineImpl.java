@@ -56,6 +56,11 @@ public class LicenseEngineImpl implements LicenseEngine {
     }
 
     @Override
+    public void renew(RenewLicenseRequest req) {
+        licenseService.renew(req);
+    }
+
+    @Override
     public void invalidateFingerprint(String authCode) {
         licenseService.invalidateFingerprint(authCode);
     }

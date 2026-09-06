@@ -7,6 +7,7 @@ import com.panjia.console.customer.mapper.AuthIssueRecordMapper;
 import com.panjia.console.license.api.LicenseEngine;
 import com.panjia.console.license.api.dto.CreateLicenseRequest;
 import com.panjia.console.license.api.dto.CreateLicenseResult;
+import com.panjia.console.license.api.dto.RenewLicenseRequest;
 import com.panjia.console.license.api.dto.RestoreResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -83,6 +84,16 @@ public class LicenseMgmtService {
     public RestoreResult restoreLicense(String authCode, String reason) {
         log.info("Restoring license: authCode={}, reason={}", authCode, reason);
         return licenseEngine.restore(authCode, reason);
+    }
+
+    /**
+     * 续期授权
+     *
+     * @param req 续期请求
+     */
+    public void renewLicense(RenewLicenseRequest req) {
+        log.info("Renewing license: authCode={}, endDate={}", req.getAuthCode(), req.getEndDate());
+        licenseEngine.renew(req);
     }
 
     /**
