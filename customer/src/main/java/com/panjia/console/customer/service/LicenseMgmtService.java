@@ -1,6 +1,5 @@
 package com.panjia.console.customer.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.panjia.console.customer.domain.AuthIssueRecord;
@@ -12,7 +11,6 @@ import com.panjia.console.license.api.dto.RestoreResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
 
@@ -120,6 +118,8 @@ public class LicenseMgmtService {
 
     /**
      * 分页查询签发流水
+     * <p>
+     * 联表 auth.t_auth_code 取授权当前状态（投影表不存状态，license 是权威源）。
      *
      * @param pageNum    页码
      * @param pageSize   每页大小
@@ -127,11 +127,7 @@ public class LicenseMgmtService {
      * @return 分页结果
      */
     public IPage<AuthIssueRecord> pageIssueRecords(int pageNum, int pageSize, String customerNo) {
-        LambdaQueryWrapper<AuthIssueRecord> wrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.hasText(customerNo)) {
-            wrapper.eq(AuthIssueRecord::getCustomerNo, customerNo);
-        }
-        wrapper.orderByDesc(AuthIssueRecord::getIssueAt);
-        return authIssueRecordMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        return authIssueRecordMapper.pageIssueRecordsWithStatus(
+                new Page<>(pageNum, pageSize), customerNo);
     }
 }

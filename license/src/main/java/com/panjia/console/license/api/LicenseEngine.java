@@ -1,6 +1,8 @@
 package com.panjia.console.license.api;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.panjia.console.license.api.dto.AlertSyncResult;
+import com.panjia.console.license.api.dto.AppClientView;
 import com.panjia.console.license.api.dto.BlacklistView;
 import com.panjia.console.license.api.dto.CreateLicenseRequest;
 import com.panjia.console.license.api.dto.CreateLicenseResult;
@@ -128,7 +130,19 @@ public interface LicenseEngine {
      * @param pageSize 每页大小
      * @return 分页结果
      */
-    com.baomidou.mybatisplus.core.metadata.IPage<HeartbeatSnapshot> pageHeartbeatSnapshots(int pageNum, int pageSize);
+    IPage<HeartbeatSnapshot> pageHeartbeatSnapshots(int pageNum, int pageSize);
+
+    /**
+     * 分页查询应用端列表
+     * <p>
+     * 应用端 = 已注册的指纹绑定。联表 t_fingerprint_binding + t_auth_code + 最新心跳，
+     * 展示每个应用端的绑定状态、指纹、绑定时间以及在线状态。
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页大小
+     * @return 应用端视图分页
+     */
+    IPage<AppClientView> pageAppClients(int pageNum, int pageSize);
 
     /**
      * 获取指定客户的黑名单视图

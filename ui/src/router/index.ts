@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '授权管理', icon: 'Key' }
       },
       {
+        path: 'app-client',
+        name: 'AppClient',
+        component: () => import('@/views/app-client/index.vue'),
+        meta: { title: '应用端', icon: 'Monitor' }
+      },
+      {
         path: 'heartbeat',
         name: 'Heartbeat',
         component: () => import('@/views/heartbeat/index.vue'),

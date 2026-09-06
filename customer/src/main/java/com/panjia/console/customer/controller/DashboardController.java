@@ -6,6 +6,7 @@ import com.panjia.console.common.dto.R;
 import com.panjia.console.customer.mapper.CustomerMapper;
 import com.panjia.console.customer.service.AlertSyncService;
 import com.panjia.console.license.api.LicenseEngine;
+import com.panjia.console.license.api.dto.AppClientView;
 import com.panjia.console.license.api.dto.HeartbeatSnapshot;
 import com.panjia.console.license.domain.AuthCode;
 import com.panjia.console.license.mapper.AuthCodeMapper;
@@ -83,5 +84,18 @@ public class DashboardController {
     @GetMapping("/runtimes/{customerNo}")
     public R<HeartbeatSnapshot> getRuntime(@PathVariable String customerNo) {
         return R.ok(licenseEngine.getHeartbeatSnapshot(customerNo));
+    }
+
+    /**
+     * 分页查询应用端列表
+     * <p>
+     * 应用端 = 已注册的指纹绑定（客户端激活成功后生成）。
+     * 展示每个应用端的授权码、客户编号、指纹、绑定状态、绑定时间及在线状态。
+     */
+    @GetMapping("/app-clients")
+    public R<IPage<AppClientView>> pageAppClients(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return R.ok(licenseEngine.pageAppClients(pageNum, pageSize));
     }
 }

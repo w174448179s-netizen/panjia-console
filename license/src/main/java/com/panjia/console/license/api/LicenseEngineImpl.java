@@ -8,6 +8,7 @@ import com.panjia.console.license.api.dto.*;
 import com.panjia.console.license.domain.AuthCode;
 import com.panjia.console.license.domain.HeartbeatRecord;
 import com.panjia.console.license.mapper.AuthCodeMapper;
+import com.panjia.console.license.mapper.FingerprintBindingMapper;
 import com.panjia.console.license.mapper.HeartbeatRecordMapper;
 import com.panjia.console.license.service.AlertService;
 import com.panjia.console.license.service.BlacklistService;
@@ -37,6 +38,7 @@ public class LicenseEngineImpl implements LicenseEngine {
     private final AlertService alertService;
     private final AuthCodeMapper authCodeMapper;
     private final HeartbeatRecordMapper heartbeatRecordMapper;
+    private final FingerprintBindingMapper fingerprintBindingMapper;
 
     @Override
     public CreateLicenseResult createLicense(CreateLicenseRequest req) {
@@ -130,6 +132,15 @@ public class LicenseEngineImpl implements LicenseEngine {
                 .currentUsers(record.getCurrentUsers())
                 .clientMode(record.getClientMode())
                 .build());
+    }
+
+    @Override
+    public IPage<AppClientView> pageAppClients(int pageNum, int pageSize) {
+        IPage<AppClientView> page = fingerprintBindingMapper.pageAppClients(new Page<>(pageNum, pageSize));
+        // 计算在线状态
+        page.getRecords().forEach(view ->
+                view.setOnlineStatus(calculateOnlineStatus(view.getLastHeartbeatAt())));
+        return page;
     }
 
     /**

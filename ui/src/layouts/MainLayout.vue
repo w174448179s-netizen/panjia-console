@@ -57,6 +57,7 @@ const menuItems = [
   { path: '/dashboard', title: '看板概览', icon: 'DataBoard' },
   { path: '/customer', title: '客户管理', icon: 'User' },
   { path: '/license', title: '授权管理', icon: 'Key' },
+  { path: '/app-client', title: '应用端', icon: 'Monitor' },
   { path: '/heartbeat', title: '心跳监控', icon: 'Connection' },
   { path: '/alert', title: '告警中心', icon: 'Bell' },
   { path: '/upgrade', title: '升级管理', icon: 'Upload' },

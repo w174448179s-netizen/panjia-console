@@ -72,4 +72,10 @@ public class AuthIssueRecord implements Serializable {
 
     /** 创建时间 */
     private OffsetDateTime createdAt;
+
+    // ---- 以下为 transient 字段，联表查询时填充 ----
+
+    /** 授权当前状态（联表 auth.t_auth_code.status，投影表不存） */
+    @TableField(exist = false)
+    private String status;
 }
