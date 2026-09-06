@@ -139,3 +139,29 @@ docker compose up -d
 ## 文档
 
 详细设计见：`docs/盘家智管_授权服务详细设计_V1.6.md`
+
+## 运维脚本
+
+| 脚本 | 说明 |
+|---|---|
+| `bin/gen_keypair.sh` | 生成 JKS 密钥对 |
+| `bin/build.sh` | 构建前后端 |
+| `bin/start.sh` / `stop.sh` / `restart.sh` | 服务启停 |
+| `bin/logs.sh` | 查看日志 |
+| `bin/deploy.sh` | 一键部署 |
+| `bin/clean-test-data.sh` | 清空测试数据（保留密钥版本） |
+| `bin/add-domain.sh` | 配置域名 + HTTPS 证书 |
+
+### 清空测试数据
+
+测试阶段产生垃圾数据时，一键清空所有业务表（保留 Flyway 迁移记录和 JWT 密钥版本）：
+
+```bash
+sh bin/clean-test-data.sh
+```
+
+脚本会自动检测环境：
+- 有 Docker postgres 容器 → `docker exec` 执行
+- 否则用本地 `psql`
+
+执行前需输入 `yes` 确认，防止误操作。如需连密钥版本一起清空（完全重置），参考脚本内注释。

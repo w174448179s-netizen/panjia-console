@@ -29,6 +29,12 @@ public class AppClientView {
     /** 指纹 SHA-256 哈希 */
     private String fpHash;
 
+    /** 原始设备指纹（激活时上报） */
+    private String fingerprint;
+
+    /** 客户端产品版本（激活时上报） */
+    private String productVersion;
+
     /** 绑定状态：ACTIVE/INVALIDATED */
     private String status;
 
@@ -52,4 +58,7 @@ public class AppClientView {
 
     /** 客户端模式（来自最新心跳） */
     private String clientMode;
+
+    /** 受限原因（LicenseErrorCode name），NORMAL 时为 NULL */
+    private String restrictReason;
 }

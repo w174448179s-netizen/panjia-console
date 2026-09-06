@@ -190,6 +190,7 @@ public class HeartbeatService {
             record.setCurrentStores(currentStores);
             record.setCurrentUsers(currentUsers);
             record.setClientMode(clientMode.name());
+            record.setRestrictReason(restrictReason != null ? restrictReason.name() : null);
             record.setRaw(rawJson);
             heartbeatRecordMapper.insert(record);
         } catch (Exception e) {

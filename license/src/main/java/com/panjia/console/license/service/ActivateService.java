@@ -121,6 +121,8 @@ public class ActivateService {
                 FingerprintBinding newBinding = new FingerprintBinding();
                 newBinding.setAuthCodeId(authCodeId);
                 newBinding.setFpHash(fpHash);
+                newBinding.setFingerprint(fingerprint);
+                newBinding.setProductVersion(productVersion);
                 newBinding.setStatus(FingerprintStatus.ACTIVE.name());
                 newBinding.setBoundAt(now);
                 fingerprintBindingMapper.insert(newBinding);

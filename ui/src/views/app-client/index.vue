@@ -38,11 +38,16 @@
           </template>
         </el-table-column>
         <el-table-column prop="customerNo" label="客户编号" width="120" />
-        <el-table-column prop="fpHash" label="指纹哈希" width="180">
+        <el-table-column prop="fingerprint" label="指纹" min-width="180">
           <template #default="{ row }">
-            <el-tooltip :content="row.fpHash" placement="top">
-              <span class="mono">{{ shortHash(row.fpHash) }}</span>
+            <el-tooltip :content="row.fingerprint || row.fpHash" placement="top" :disabled="!row.fingerprint && !row.fpHash">
+              <span class="mono">{{ row.fingerprint ? shortHash(row.fingerprint) : '-' }}</span>
             </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column prop="productVersion" label="产品版本" width="110">
+          <template #default="{ row }">
+            {{ row.productVersion || '-' }}
           </template>
         </el-table-column>
         <el-table-column prop="status" label="绑定状态" width="100">
@@ -64,10 +69,17 @@
             <span class="mono">{{ row.instanceId || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="clientMode" label="运行模式" width="90">
+        <el-table-column prop="clientMode" label="运行模式" width="140">
           <template #default="{ row }">
             <template v-if="row.clientMode">
-              <el-tag :type="row.clientMode === 'NORMAL' ? 'success' : 'danger'" size="small">
+              <el-tooltip
+                v-if="row.clientMode === 'RESTRICT' && row.restrictReason"
+                :content="restrictReasonLabel(row.restrictReason)"
+                placement="top"
+              >
+                <el-tag type="danger" size="small">受限</el-tag>
+              </el-tooltip>
+              <el-tag v-else :type="row.clientMode === 'NORMAL' ? 'success' : 'danger'" size="small">
                 {{ row.clientMode === 'NORMAL' ? '正常' : '受限' }}
               </el-tag>
             </template>
@@ -193,6 +205,20 @@ function onlineStatusLabel(status: string) {
 
 function formatTime(time: string) {
   return time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
+}
+
+/** 受限原因中文映射 */
+function restrictReasonLabel(reason: string): string {
+  const map: Record<string, string> = {
+    FP_MISMATCH: '指纹不匹配（设备指纹与激活时不一致）',
+    NOT_ACTIVATED: '未激活（无有效的指纹绑定）',
+    TOKEN_REVOKED: '授权已吊销 / 版本不匹配 / 在黑名单中',
+    AUTH_EXPIRED: '授权已过期',
+    AUTH_CODE_NOT_FOUND: '授权码不存在',
+    INTERNAL_ERROR: '服务端内部错误',
+    SIGNATURE_INVALID: 'JWT 签名无效'
+  }
+  return map[reason] || reason
 }
 
 onMounted(loadData)

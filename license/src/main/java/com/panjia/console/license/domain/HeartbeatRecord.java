@@ -57,6 +57,9 @@ public class HeartbeatRecord implements Serializable {
     /** 客户端模式（服务端计算后记录） */
     private String clientMode;
 
+    /** 受限原因（LicenseErrorCode name），NORMAL 时为 NULL */
+    private String restrictReason;
+
     /** 原始请求体（JSON，用于诊断） */
     @TableField(typeHandler = JsonbTypeHandler.class)
     private String raw;

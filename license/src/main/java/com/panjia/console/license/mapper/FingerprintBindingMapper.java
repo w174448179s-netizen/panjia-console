@@ -45,13 +45,15 @@ public interface FingerprintBindingMapper extends BaseMapper<FingerprintBinding>
      * @return 应用端视图分页
      */
     @Select("SELECT ac.auth_code AS authCode, ac.customer_no AS customerNo, " +
-            "fb.fp_hash AS fpHash, fb.status AS status, fb.bound_at AS boundAt, " +
+            "fb.fp_hash AS fpHash, fb.fingerprint AS fingerprint, fb.product_version AS productVersion, " +
+            "fb.status AS status, fb.bound_at AS boundAt, " +
             "fb.invalidated_at AS invalidatedAt, fb.invalidate_reason AS invalidateReason, " +
-            "hb.instance_id AS instanceId, hb.received_at AS lastHeartbeatAt, hb.client_mode AS clientMode " +
+            "hb.instance_id AS instanceId, hb.received_at AS lastHeartbeatAt, " +
+            "hb.client_mode AS clientMode, hb.restrict_reason AS restrictReason " +
             "FROM auth.t_fingerprint_binding fb " +
             "JOIN auth.t_auth_code ac ON fb.auth_code_id = ac.id " +
             "LEFT JOIN LATERAL (" +
-            "  SELECT instance_id, received_at, client_mode " +
+            "  SELECT instance_id, received_at, client_mode, restrict_reason " +
             "  FROM auth.t_heartbeat_record " +
             "  WHERE auth_code_id = fb.auth_code_id " +
             "  ORDER BY received_at DESC LIMIT 1" +

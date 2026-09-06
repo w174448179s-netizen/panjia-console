@@ -33,6 +33,12 @@ public class FingerprintBinding implements Serializable {
     /** 指纹 SHA-256 哈希 */
     private String fpHash;
 
+    /** 原始设备指纹（激活时上报，用于展示） */
+    private String fingerprint;
+
+    /** 客户端产品版本（激活时上报） */
+    private String productVersion;
+
     /** 状态：ACTIVE/INVALIDATED */
     private String status;
 
