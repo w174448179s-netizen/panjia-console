@@ -45,4 +45,10 @@ public class JwtConfigProperties {
 
     /** 多实例确认次数阈值，默认 3 次 */
     private int multiInstanceConfirmCount = 3;
+
+    /** IP 多实例检测窗口（分钟），默认 60 分钟 */
+    private int ipMismatchWindowMinutes = 60;
+
+    /** IP 多实例确认次数阈值，默认 2 次 */
+    private int ipMismatchConfirmCount = 2;
 }

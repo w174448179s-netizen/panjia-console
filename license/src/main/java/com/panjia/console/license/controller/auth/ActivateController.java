@@ -128,6 +128,7 @@ public class ActivateController {
                 request.getReportedAt() != null ? request.getReportedAt() : OffsetDateTime.now(),
                 request.getCurrentStores(),
                 request.getCurrentUsers(),
+                resolveClientIp(httpReq),
                 rawJson
         );
 
@@ -190,5 +191,21 @@ public class ActivateController {
             throw new LicenseException(LicenseErrorCode.SIGNATURE_INVALID);
         }
         return authHeader.substring(7);
+    }
+
+    /**
+     * 解析客户端真实 IP（优先取 X-Forwarded-For，兼容 nginx 反代）
+     */
+    private String resolveClientIp(HttpServletRequest req) {
+        String ip = req.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank()) {
+            // X-Forwarded-For 可能包含多个 IP，取第一个（最原始的客户端）
+            return ip.split(",")[0].trim();
+        }
+        ip = req.getHeader("X-Real-IP");
+        if (ip != null && !ip.isBlank()) {
+            return ip.trim();
+        }
+        return req.getRemoteAddr();
     }
 }

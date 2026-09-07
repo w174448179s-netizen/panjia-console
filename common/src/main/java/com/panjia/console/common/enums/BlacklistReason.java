@@ -11,6 +11,9 @@ public enum BlacklistReason {
     /** 手动加入（可移除） */
     MANUAL,
 
-    /** 多实例检测触发（可移除） */
-    MULTI_INSTANCE
+    /** 多实例检测触发——指纹不匹配（可移除） */
+    MULTI_INSTANCE,
+
+    /** 多实例检测触发——同授权码不同 IP 同时心跳（可移除） */
+    IP_MULTI_INSTANCE
 }

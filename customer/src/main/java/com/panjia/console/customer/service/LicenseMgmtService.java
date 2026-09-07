@@ -1,7 +1,9 @@
 package com.panjia.console.customer.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.panjia.console.customer.domain.AuthIssueRecord;
 import com.panjia.console.customer.mapper.AuthIssueRecordMapper;
 import com.panjia.console.license.api.LicenseEngine;
@@ -88,12 +90,48 @@ public class LicenseMgmtService {
 
     /**
      * 续期授权
+     * <p>
+     * 续期会更新 t_auth_code 与 t_license_content，同时同步更新签发流水投影表，
+     * 否则授权管理页面展示的到期日期/配额等字段不会变化。
      *
      * @param req 续期请求
      */
     public void renewLicense(RenewLicenseRequest req) {
         log.info("Renewing license: authCode={}, endDate={}", req.getAuthCode(), req.getEndDate());
         licenseEngine.renew(req);
+
+        // 同步更新投影表（end_date / version / max_stores / max_users / capabilities / maintenance_end_date）
+        AuthIssueRecord record = authIssueRecordMapper.selectOne(
+                new LambdaQueryWrapper<AuthIssueRecord>()
+                        .eq(AuthIssueRecord::getAuthCode, req.getAuthCode()));
+        if (record != null) {
+            if (req.getEndDate() != null) {
+                record.setEndDate(req.getEndDate());
+            }
+            if (req.getVersion() != null) {
+                record.setVersion(req.getVersion());
+            }
+            if (req.getMaxStores() != null) {
+                record.setMaxStores(req.getMaxStores());
+            }
+            if (req.getMaxUsers() != null) {
+                record.setMaxUsers(req.getMaxUsers());
+            }
+            if (req.getCapabilities() != null && !req.getCapabilities().isEmpty()) {
+                try {
+                    record.setCapabilities(new ObjectMapper().writeValueAsString(req.getCapabilities()));
+                } catch (Exception e) {
+                    log.warn("Failed to serialize capabilities for projection: {}", e.getMessage());
+                }
+            }
+            if (req.getMaintenanceEndDate() != null) {
+                record.setMaintenanceEndDate(req.getMaintenanceEndDate());
+            }
+            authIssueRecordMapper.updateById(record);
+            log.info("Projection updated: authCode={}", req.getAuthCode());
+        } else {
+            log.warn("Projection record not found for authCode={}, skip sync", req.getAuthCode());
+        }
     }
 
     /**

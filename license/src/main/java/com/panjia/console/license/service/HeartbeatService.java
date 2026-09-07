@@ -64,13 +64,14 @@ public class HeartbeatService {
      * @param reportedAt    客户端上报时间
      * @param currentStores 当前门店数
      * @param currentUsers  当前用户数
+     * @param clientIp      客户端 IP（用于 IP 多实例检测）
      * @param rawJson       原始请求体（用于诊断）
      * @return 心跳响应（offlineExpireAt + clientMode）
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public HeartbeatResponse heartbeat(String jwtToken, String instanceId, String fingerprint,
                                        OffsetDateTime reportedAt, Integer currentStores,
-                                       Integer currentUsers, String rawJson) {
+                                       Integer currentUsers, String clientIp, String rawJson) {
         OffsetDateTime now = OffsetDateTime.now();
         ClientMode clientMode = ClientMode.NORMAL;
         LicenseErrorCode restrictReason = null;
@@ -191,11 +192,31 @@ public class HeartbeatService {
             record.setCurrentUsers(currentUsers);
             record.setClientMode(clientMode.name());
             record.setRestrictReason(restrictReason != null ? restrictReason.name() : null);
+            record.setClientIp(clientIp);
             record.setRaw(rawJson);
             heartbeatRecordMapper.insert(record);
         } catch (Exception e) {
             // 心跳记录写入失败不影响响应（降级处理）
             log.error("Failed to insert heartbeat record", e);
+        }
+
+        // ★ IP 多实例检测（在心跳记录写入后执行）
+        //    同一授权码在窗口内出现不同 IP → 两阶段拉黑
+        if (clientIp != null && !clientIp.isBlank()
+                && authCode != null
+                && AuthCodeStatus.ACTIVE.name().equals(authCode.getStatus())
+                && clientMode == ClientMode.NORMAL) {
+            try {
+                OffsetDateTime ipWindowStart = now.minusMinutes(config.getIpMismatchWindowMinutes());
+                var diffIpRecords = heartbeatRecordMapper.selectRecentByDifferentIp(
+                        authCode.getId(), clientIp, ipWindowStart);
+                if (!diffIpRecords.isEmpty()) {
+                    multiInstanceService.handleIpMismatchDetected(
+                            authCode.getId(), authCode.getCustomerNo(), clientIp);
+                }
+            } catch (Exception e) {
+                log.error("IP multi-instance detection failed", e);
+            }
         }
 
         // 返回结果

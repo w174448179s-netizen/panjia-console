@@ -62,6 +62,10 @@ panjia:
     multi-instance-window-hours: 24
     # 多实例确认次数
     multi-instance-confirm-count: 3
+    # IP 多实例检测窗口（分钟），同一授权码在此窗口内出现不同 IP 视为同时在线
+    ip-mismatch-window-minutes: 60
+    # IP 多实例确认次数，达到后拉黑
+    ip-mismatch-confirm-count: 2
 
   # 备份配置
   backup:
