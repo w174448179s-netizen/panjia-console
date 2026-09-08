@@ -12,10 +12,10 @@ import com.panjia.console.license.mapper.LicenseContentMapper;
 import com.panjia.console.license.security.JwtConfigProperties;
 import com.panjia.console.license.security.LicenseJwtClaims;
 import com.panjia.console.license.security.SignatureEngine;
-import com.panjia.console.common.util.FingerprintUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -44,6 +44,7 @@ public class CheckService {
     private final LicenseContentMapper licenseContentMapper;
     private final BlacklistService blacklistService;
     private final JwtConfigProperties config;
+    private final ObjectMapper objectMapper;
 
     /**
      * 实时校验授权
@@ -226,9 +227,8 @@ public class CheckService {
             return Collections.emptyList();
         }
         try {
-            tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
-            return mapper.readValue(capabilitiesJson,
-                    mapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            return objectMapper.readValue(capabilitiesJson,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
         } catch (Exception e) {
             log.warn("Failed to parse capabilities: {}", e.getMessage());
             return Collections.emptyList();

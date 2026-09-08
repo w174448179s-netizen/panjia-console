@@ -3,6 +3,7 @@ package com.panjia.console.license.controller.auth;
 import tools.jackson.databind.ObjectMapper;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
+import com.panjia.console.common.util.ClientIpResolver;
 import com.panjia.console.license.controller.auth.dto.*;
 import com.panjia.console.license.service.ActivateService;
 import com.panjia.console.license.service.CheckService;
@@ -42,6 +43,7 @@ public class ActivateController {
     private final HeartbeatService heartbeatService;
     private final CheckService checkService;
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver clientIpResolver;
 
     /**
      * 激活授权 —— 全系统唯一签发 JWT 的接口
@@ -54,9 +56,11 @@ public class ActivateController {
      */
     @PostMapping("/activate")
     public ResponseEntity<ActivateResponse> activate(@Valid @RequestBody ActivateRequest request) {
-        log.info("Activate request: authCode=***{}",
+        log.info("[req={}] [activate] Activate request: authCode=***{}, instanceId={}",
+                request.getRequestId(),
                 request.getAuthCode() != null && request.getAuthCode().length() > 4
-                        ? request.getAuthCode().substring(request.getAuthCode().length() - 4) : "");
+                        ? request.getAuthCode().substring(request.getAuthCode().length() - 4) : "",
+                request.getInstanceId());
 
         try {
             // 事务内完成状态转换和绑定（JWT 签名在事务外）
@@ -64,7 +68,9 @@ public class ActivateController {
                     request.getAuthCode(),
                     request.getFingerprint(),
                     request.getProductVersion(),
-                    request.getCompany()
+                    request.getCompany(),
+                    request.getInstanceId(),
+                    request.getRequestId()
             );
 
             // ★ 事务外签发 JWT（缩短数据库锁持有时间）
@@ -98,12 +104,12 @@ public class ActivateController {
      * 心跳上报
      * <p>
      * ★ 请求不含 clientMode —— 服务端自行计算并返回
-     * ★ 心跳不刷新 JWT —— 只返回 offlineExpireAt
+     * ★ P0-B：token 剩余寿命低于续签阈值时，响应携带重签后的新 JWT（token 字段）
      *
      * @param authHeader Authorization: Bearer <JWT>
      * @param request    心跳请求
      * @param httpReq    HTTP 请求（用于获取原始 body 诊断）
-     * @return 心跳响应（offlineExpireAt + clientMode）
+     * @return 心跳响应（offlineExpireAt + clientMode + token?）
      */
     @PostMapping("/heartbeat")
     public ResponseEntity<HeartbeatResponse> heartbeat(
@@ -136,6 +142,7 @@ public class ActivateController {
                 .offlineExpireAt(result.getOfflineExpireAt())
                 .clientMode(result.getClientMode())
                 .code(result.getRestrictCode())
+                .token(result.getToken())
                 .build();
 
         // 授权受限也返回 200 + clientMode=RESTRICT（§5.7 冻结规则）
@@ -194,18 +201,12 @@ public class ActivateController {
     }
 
     /**
-     * 解析客户端真实 IP（优先取 X-Forwarded-For，兼容 nginx 反代）
+     * ★ H2 安全修复：解析客户端真实 IP
+     * <p>
+     * 旧实现直接取 X-Forwarded-For 第一个 IP，攻击者可伪造该头部绕过 IP 多实例检测。
+     * 新实现委托 ClientIpResolver：从右向左跳过可信代理 CIDR，取第一个非可信代理的 IP。
      */
     private String resolveClientIp(HttpServletRequest req) {
-        String ip = req.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank()) {
-            // X-Forwarded-For 可能包含多个 IP，取第一个（最原始的客户端）
-            return ip.split(",")[0].trim();
-        }
-        ip = req.getHeader("X-Real-IP");
-        if (ip != null && !ip.isBlank()) {
-            return ip.trim();
-        }
-        return req.getRemoteAddr();
+        return clientIpResolver.resolve(req);
     }
 }

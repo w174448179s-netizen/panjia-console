@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盘家智管 License 授权体系安全审计报告</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --red: #f85149;
+  --orange: #db8b1f;
+  --yellow: #d29922;
+  --green: #3fb950;
+  --blue: #58a6ff;
+  --purple: #bc8cff;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+  line-height: 1.7;
+  font-size: 15px;
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 28px; margin-bottom: 8px; }
+h2 { font-size: 22px; margin-top: 48px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; color: var(--blue); }
+h3 { font-size: 18px; margin-top: 32px; margin-bottom: 12px; }
+h4 { font-size: 15px; margin-top: 20px; margin-bottom: 8px; color: var(--purple); }
+.subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.card.high { border-left: 4px solid var(--red); }
+.card.medium { border-left: 4px solid var(--orange); }
+.card.low { border-left: 4px solid var(--yellow); }
+.card.info { border-left: 4px solid var(--green); }
+.card.fixed { border-left: 4px solid var(--green); opacity: 0.85; }
+.severity { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.severity.high { background: rgba(248,81,73,0.2); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+.severity.medium { background: rgba(219,139,31,0.2); color: var(--orange); border: 1px solid rgba(219,139,31,0.3); }
+.severity.low { background: rgba(210,153,34,0.2); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+.severity.fixed { background: rgba(63,185,80,0.2); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+.severity.ok { background: rgba(88,166,255,0.2); color: var(--blue); border: 1px solid rgba(88,166,255,0.3); }
+code { background: rgba(110,118,129,0.15); padding: 1px 6px; border-radius: 3px; font-size: 13px; font-family: 'SF Mono','Fira Code',monospace; }
+pre { background: #1a2029; border: 1px solid var(--border); border-radius: 6px; padding: 14px; overflow-x: auto; margin: 12px 0; }
+pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+th, td { padding: 8px 12px; text-align: left; border: 1px solid var(--border); font-size: 14px; }
+th { background: #1a2029; }
+tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.badge { padding: 1px 8px; border-radius: 3px; font-size: 11px; }
+.badge.red { background: rgba(248,81,73,0.15); color: var(--red); }
+.badge.green { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge.orange { background: rgba(219,139,31,0.15); color: var(--orange); }
+.badge.blue { background: rgba(88,166,255,0.15); color: var(--blue); }
+ul, ol { margin: 8px 0 8px 24px; }
+li { margin-bottom: 4px; }
+.muted { color: var(--muted); }
+.highlight { color: var(--red); font-weight: 600; }
+.section-summary {
+  background: linear-gradient(135deg, #161b22, #1a2029);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px; }
+.summary-item { text-align: center; }
+.summary-item .num { font-size: 32px; font-weight: 700; }
+.summary-item .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.toc { background: #1a2029; border: 1px solid var(--border); border-radius: 6px; padding: 16px 24px; margin-bottom: 32px; }
+.toc h3 { margin-top: 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+.toc ul { list-style: none; margin: 0; padding: 0; }
+.toc li { margin-bottom: 6px; }
+.toc a { color: var(--blue); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+.attack-flow { background: #1a2029; border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin: 12px 0; }
+.attack-step { padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+.attack-step:last-child { border-bottom: none; }
+.attack-step .step-num { display: inline-block; width: 24px; height: 24px; background: var(--red); color: var(--bg); border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 700; margin-right: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>盘家智管 License 授权体系安全审计报告</h1>
+<p class="subtitle">审计范围：panjia-console（服务端）+ panjia-license（客户端） | 审计日期：2026-09-07</p>
+
+<div class="section-summary">
+  <p><strong>审计结论</strong>：授权体系整体架构设计扎实（JWT RS256 + 指纹绑定 + 心跳续签 + 黑名单 + 多实例检测 + 完整性自检 + 单调时钟），核心密码学机制正确。H2（X-Forwarded-For 伪造）和 H3（幂等缓存集群失效）已修复。剩余风险均为中等或低风险，不影响核心授权安全性。</p>
+  <div class="summary-grid">
+    <div class="summary-item"><div class="num" style="color:var(--red)">0</div><div class="label">高危</div></div>
+    <div class="summary-item"><div class="num" style="color:var(--orange)">3</div><div class="label">中危</div></div>
+    <div class="summary-item"><div class="num" style="color:var(--yellow)">4</div><div class="label">低危</div></div>
+    <div class="summary-item"><div class="num" style="color:var(--green)">2</div><div class="label">已修复</div></div>
+  </div>
+</div>
+
+<div class="toc">
+  <h3>目录</h3>
+  <ul>
+    <li><a href="#fixed">已修复项（2）</a></li>
+    <li><a href="#medium">中危风险（3）</a></li>
+    <li><a href="#low">低危风险（4）</a></li>
+    <li><a href="#architecture">架构安全机制审查</a></li>
+    <li><a href="#recommendation">建议修复优先级</a></li>
+  </ul>
+</div>
+
+<h2 id="fixed">已修复项</h2>
+
+<div class="card fixed">
+  <span class="severity fixed">已修复</span> <span class="badge green">H2</span>
+  <h3>X-Forwarded-For 直接信任</h3>
+  <p><strong>修复方案</strong>：新增 <code>ClientIpResolver</code>，从右向左遍历 X-Forwarded-For，跳过可信代理 CIDR，取第一个非可信代理的 IP。可信代理 CIDR 默认覆盖 Docker 三网段 + 回环地址，可通过环境变量 <code>PANJIA_TRUSTED_PROXIES</code> 覆盖。</p>
+  <p><strong>涉及文件</strong>：<code>ClientIpResolver.java</code>、<code>ActivateController.java</code>、<code>JwtConfigProperties.java</code>、<code>LicenseBeanConfig.java</code>、<code>application.yml</code>、<code>docker-compose.yml</code></p>
+</div>
+
+<div class="card fixed">
+  <span class="severity fixed">已修复</span> <span class="badge green">H3</span>
+  <h3>幂等缓存集群失效</h3>
+  <p><strong>修复方案</strong>：提取 <code>IdempotentStore</code> 接口，<code>LocalIdempotentStore</code> 作为单实例默认实现（<code>@ConditionalOnProperty(matchIfMissing=true)</code>）。集群部署只需实现接口切换 Redis 即可，无需改 <code>ActivateService</code>。</p>
+  <p><strong>涉及文件</strong>：<code>IdempotentStore.java</code>、<code>LocalIdempotentStore.java</code>、<code>IdempotentCacheStartupChecker.java</code>、<code>ActivateService.java</code>、<code>JwtConfigProperties.java</code></p>
+</div>
+
+<div class="card fixed">
+  <span class="severity fixed">已修复</span> <span class="badge green">预存</span>
+  <h3>自调用事务失效</h3>
+  <p><strong>修复方案</strong>：用 <code>TransactionTemplate</code> 编程式事务替换 <code>@Transactional</code> 注解。<code>doActivate</code> 改为 <code>private</code>，事务边界显式包裹。</p>
+  <p><strong>涉及文件</strong>：<code>ActivateService.java</code>、<code>LicenseBeanConfig.java</code></p>
+</div>
+
+<h2 id="medium">中危风险</h2>
+
+<div class="card medium">
+  <span class="severity medium">中危</span> <span class="badge orange">M1</span>
+  <h3>CheckService.parseCapabilities 和 JwtIssuer 使用 <code>new ObjectMapper()</code> 而非 Spring 注入 Bean</h3>
+  
+  <h4>涉及文件</h4>
+  <ul>
+    <li><code>CheckService.java</code> 第 228 行：<code>tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();</code></li>
+    <li><code>JwtIssuer.java</code> 第 51 行：<code>private final ObjectMapper objectMapper = new ObjectMapper();</code></li>
+  </ul>
+
+  <h4>问题</h4>
+  <p><code>ActivateService</code> 已经修复为注入 Spring 的 <code>ObjectMapper</code> Bean（含 <code>JavaTimeModule</code>），但 <code>CheckService.parseCapabilities</code> 和 <code>JwtIssuer</code> 仍然 <code>new ObjectMapper()</code>。当前不涉及 <code>OffsetDateTime</code> 序列化所以不会崩，但有两个隐患：</p>
+  <ul>
+    <li><code>JwtIssuer.parseClaims</code> 第 146 行用 <code>objectMapper.convertValue()</code> 解析 capabilities claim，如果 capabilities 中含复杂嵌套对象（虽然当前是 <code>List&lt;String&gt;</code>），未注册模块的行为可能与 Spring 序列化行为不一致</li>
+    <li>违反"统一 ObjectMapper 实例"最佳实践，未来扩展时容易遗漏</li>
+  </ul>
+
+  <h4>影响</h4>
+  <p>当前不崩溃，但行为不一致，且未来如果 capabilities 变成更复杂结构（含日期时间），会出问题。</p>
+
+  <h4>建议</h4>
+  <p>将 <code>CheckService</code> 和 <code>JwtIssuer</code> 中的 <code>new ObjectMapper()</code> 替换为注入 Spring 的 <code>ObjectMapper</code> Bean，与 <code>ActivateService</code> 和 <code>HeartbeatService</code> 保持一致。</p>
+</div>
+
+<div class="card medium">
+  <span class="severity medium">中危</span> <span class="badge orange">M2</span>
+  <h3>SSL Pinning 指纹从配置文件读取，而非硬编码</h3>
+
+  <h4>涉及文件</h4>
+  <ul>
+    <li><code>LicenseProperties.java</code> 第 89-92 行：<code>SslPinning</code> 内部类，<code>primaryFingerprint</code> 作为 <code>@ConfigurationProperties</code> 字段暴露</li>
+    <li><code>PinnedTrustManager.java</code>（未读但设计文档提到）：从 properties 读取指纹</li>
+  </ul>
+
+  <h4>问题</h4>
+  <p><code>LicenseProperties.SslPinning</code> 将 SSL 证书指纹作为可配置项暴露。攻击者如果能修改 <code>application.yml</code> 或环境变量，可以替换为自己的证书指纹，中间人代理就能解密 HTTPS 流量。</p>
+
+  <div class="attack-flow">
+    <div class="attack-step"><span class="step-num">1</span> 攻击者获取客户机器文件系统访问权</div>
+    <div class="attack-step"><span class="step-num">2</span> 修改 application.yml 中 <code>panjia.license.ssl-pinning.primary-fingerprint</code> 为自己的中间人证书指纹</div>
+    <div class="attack-step"><span class="step-num">3</span> 在中间人代理上拦截 HTTPS 请求，客户端不会报错（指纹匹配）</div>
+    <div class="attack-step"><span class="step-num">4</span> 捕获 JWT、authCode、fingerprintHash 等全部敏感数据</div>
+  </div>
+
+  <h4>缓解因素</h4>
+  <ul>
+    <li>设计文档 §3.2 注释"从配置读取"——这是有意为之的设计决策，而非疏忽</li>
+    <li>攻击者需要已有文件系统访问权，这已经是较高的攻击门槛</li>
+    <li>完整性自检（IntegrityChecker）会检测 class 文件篡改，但不覆盖 yml 配置</li>
+  </ul>
+
+  <h4>建议</h4>
+  <p>短期：保持现状（设计有意为之）。长期：将指纹改为硬编码到 class 常量（经 ProGuard 混淆），与 <code>LicenseMode.DEV</code> 一样作为编译时常量，运行时不可覆盖。</p>
+</div>
+
+<div class="card medium">
+  <span class="severity medium">中危</span> <span class="badge orange">M3</span>
+  <h3>完整性校验 checksums 与 class 同在 JAR 内，可被同时替换</h3>
+
+  <h4>涉及文件</h4>
+  <ul>
+    <li><code>IntegrityChecker.java</code> 第 60 行：<code>EMBEDDED_CHECKSUMS = "META-INF/panjia-checksums.txt"</code></li>
+    <li><code>IntegrityChecker.loadChecksums()</code>：优先从 classpath 读取内嵌资源</li>
+  </ul>
+
+  <h4>问题</h4>
+  <p>SHA-256 校验和文件 <code>panjia-checksums.txt</code> 打包在 JAR 的 <code>META-INF/</code> 下。攻击者如果替换 class 字节码，只需同时重新计算 hash 并更新 <code>panjia-checksums.txt</code>，重新打包 JAR 即可绕过。</p>
+
+  <h4>缓解因素</h4>
+  <ul>
+    <li><code>IntegrityChecker</code> 的注释明确承认了这一点："不防：整体替换 JAR + 伪造内嵌 checksums"</li>
+    <li>设计意图是"提高门槛"而非"绝对防护"——攻击者需要逆向打包过程</li>
+    <li>外部 <code>panjia-checksums</code> 文件作为降级方案，首次部署时生成，可由运维锁权限</li>
+    <li>ProGuard 混淆进一步增加了逆向难度</li>
+  </ul>
+
+  <h4>建议</h4>
+  <p>短期：保持现状（设计有意为之的防御层级）。长期：将校验和签名后存储到服务端，客户端启动时从服务端拉取校验和（签名验证），而非从 JAR 内读取。</p>
+</div>
+
+<h2 id="low">低危风险</h2>
+
+<div class="card low">
+  <span class="severity low">低危</span> <span class="badge blue">L1</span>
+  <h3>密钥版本号硬编码为 1</h3>
+
+  <h4>涉及文件</h4>
+  <ul>
+    <li><code>JwtIssuer.java</code> 第 49 行：<code>private int currentKeyVersion = 1;</code></li>
+    <li><code>LicenseProperties</code>（客户端）：无 keyVersion 配置</li>
+  </ul>
+
+  <h4>问题</h4>
+  <p>密钥版本号硬编码为 1，没有密钥轮换机制。如果私钥泄露，需要轮换密钥对，但当前架构无法平滑轮换——所有已签发的 JWT 的 <code>keyVersion=1</code>，客户端只持有版本 1 的公钥。</p>
+
+  <h4>缓解因素</h4>
+  <ul>
+    <li>私钥仅存在于服务端 JKS，不入 JAR、不入 Git、不出进程</li>
+    <li>即使泄露，可以通过更新客户端 JAR 替换公钥（虽然需要所有客户升级）</li>
+    <li>设计文档 §1.3 明确"极简原则"，密钥轮换属于大团队才需要的机制</li>
+  </ul>
+
+  <h4>建议</h4>
+  <p>保持现状。如果未来需要轮换，可以在 <code>license-public-key.pem</code> 中放多个公钥，客户端按 <code>keyVersion</code> 选择。当前单密钥足够。</p>
+</div>
+
+<div class="card low">
+  <span class="severity low">低危</span> <span class="badge blue">L2</span>
+  <h3>CheckService 未显式校验 JWT exp</h3>
+
+  <h4>涉及文件</h4>
+  <ul>
+    <li><code>CheckService.java</code> 第 67 行：<code>claims = signatureEngine.verifyAndParse(jwtToken);</code></li>
+    <li><code>JwtVerifier.verify()</code>：调用 <code>.clockSkewSeconds(config.getClockSkewSeconds())</code></li>
+  </ul>
+
+  <h4>问题</h4>
+  <p><code>JwtVerifier</code> 使用 jjwt 的 <code>clockSkewSeconds</code> 做 exp 校验，但 <code>CheckService</code> 没有显式检查 <code>claims.getExpiresAt()</code>。jjwt 在 <code>parseSignedClaims</code> 时会自动检查 exp，如果过期会抛 <code>JwtException</code>，所以实际是安全的。但这依赖 jjwt 库的隐式行为，不如 <code>HeartbeatService</code> 中显式检查 <code>claims.getExpiresAt()</code> 那样清晰。</p>
+
+  <h4>缓解因素</h4>
+  <ul>
+    <li>jjwt <code>parseSignedClaims</code> 内置 exp 校验，过期 token 会被拒绝</li>
+    <li><code>CheckService</code> 第二步查数据库 <code>authCode.getEndDate()</code> 做了业务层过期校验</li>
+    <li>客户端 <code>LicenseServiceImpl.isTokenExpired()</code> 做了本地过期检查</li>
+  </ul>
+
+  <h4>建议</h4>
+  <p>保持现状。jjwt 隐式校验已足够，业务层也有兜底。</p>
+</div>
+
+<div class="card low">
+  <span class="severity low">低危</span> <span class="badge blue">L3</span>
+  <h3>devToken 和 authCode 写在 application.yml 中</h3>
+
+  <h4>涉及文件</h4>
+  <ul>
+    <li><code>LicenseProperties.java</code>：<code>devToken</code> 和 <code>authCode</code> 作为 <code>@ConfigurationProperties</code> 字段</li>
+    <li>客户端 <code>application.yml</code>：可配置 <code>panjia.license.dev-token</code> 和 <code>panjia.license.auth-code</code></li>
+  </ul>
+
+  <h4>问题</h4>
+  <p><code>devToken</code> 是开发环境预置 token，生产环境应为空。<code>authCode</code> 是首次部署时使用的授权码。两者都通过配置文件传入，如果生产环境 <code>application.yml</code> 中残留了 devToken，会绕过整个授权体系。</p>
+
+  <h4>缓解因素</h4>
+  <ul>
+    <li><code>LicenseMode.DEV</code> 是编译时常量，生产构建（<code>-P prod</code>）时 dev 分支被编译器消除</li>
+    <li><code>LicenseStartupValidator</code> 在生产模式下强制校验 token 有效性</li>
+    <li>ProGuard 混淆后 <code>LicenseMode.DEV=false</code> 不可被运行时修改</li>
+    <li><code>HeartbeatScheduler</code> 如果在生产环境检测到 <code>LicenseMode.DEV=true</code> 会大声告警</li>
+  </ul>
+
+  <h4>建议</h4>
+  <p>保持现状。编译时常量 <code>LicenseMode.DEV</code> 是核心防御，配置文件只是辅助。</p>
+</div>
+
+<div class="card low">
+  <span class="severity low">低危</span> <span class="badge blue">L4</span>
+  <h3>RestrictedMode 偏移量算法可被逆向</h3>
+
+  <h4>涉及文件</h4>
+  <ul>
+    <li><code>RestrictedMode.java</code> 第 77-88 行：<code>computeDeterministicOffset()</code></li>
+  </ul>
+
+  <h4>问题</h4>
+  <p>受限模式的算薪偏移量基于指纹哈希和授权码的 FNV-1a 哈希取模。攻击者反编译 JAR 后可以看到算法，通过多次比对结果可以反推偏移量并修正。</p>
+
+  <h4>缓解因素</h4>
+  <ul>
+    <li>设计文档 §5.1 明确"错得明显"而非"完全锁死"——目的是让客户不敢用破解版发工资</li>
+    <li>ProGuard 混淆增加逆向难度</li>
+    <li>偏移量是确定性的，但攻击者需要知道 authCode 和 fingerprintHash 才能计算</li>
+    <li>即使修正了偏移量，心跳/Check 接口仍会返回 RESTRICT，服务端有记录</li>
+  </ul>
+
+  <h4>建议</h4>
+  <p>保持现状。受限模式的设计意图是"提高破解成本"而非"绝对防护"。</p>
+</div>
+
+<h2 id="architecture">架构安全机制审查</h2>
+
+<div class="card info">
+  <span class="severity ok">通过</span>
+  <h3>密码学机制（正确）</h3>
+  <table>
+    <tr><th>检查项</th><th>服务端</th><th>客户端</th><th>状态</th></tr>
+    <tr><td>JWT 签名算法</td><td>RS256（私钥签发）</td><td>RS256（公钥验签）</td><td><span class="badge green">对齐</span></td></tr>
+    <tr><td>alg confusion 防护</td><td>显式断言 RS256</td><td>显式断言 RS256</td><td><span class="badge green">对齐</span></td></tr>
+    <tr><td>公钥来源</td><td>JKS 密钥库</td><td>JAR 内嵌 PEM</td><td><span class="badge green">正确</span></td></tr>
+    <tr><td>私钥保护</td><td>环境变量注入密码，不入 JAR/Git</td><td>N/A（客户端无私钥）</td><td><span class="badge green">正确</span></td></tr>
+    <tr><td>时钟偏差</td><td>60 秒</td><td>60 秒</td><td><span class="badge green">对齐</span></td></tr>
+  </table>
+</div>
+
+<div class="card info">
+  <span class="severity ok">通过</span>
+  <h3>指纹绑定机制（正确）</h3>
+  <table>
+    <tr><th>检查项</th><th>状态</th><th>说明</th></tr>
+    <tr><td>双因子指纹</td><td><span class="badge green">正确</span></td><td>hostMachineId + instanceId，sha256 哈希</td></tr>
+    <tr><td>激活时绑定</td><td><span class="badge green">正确</span></td><td>FOR UPDATE 行锁 + 三步校验（首次/续期/换机）</td></tr>
+    <tr><td>心跳时比对</td><td><span class="badge green">正确</span></td><td>JWT claims fpHash vs 数据库 ACTIVE binding fpHash</td></tr>
+    <tr><td>check 时比对</td><td><span class="badge green">正确</span></td><td>同心跳，查数据库 ACTIVE binding</td></tr>
+    <tr><td>运行时比对</td><td>N/A</td><td>客户端 L2 运行时指纹比对（check 时采集当前指纹 vs token 绑定指纹）</td></tr>
+    <tr><td>换机流程</td><td><span class="badge green">正确</span></td><td>REBINDING 状态 → 旧 ACTIVE → INVALIDATED → 新 ACTIVE</td></tr>
+  </table>
+</div>
+
+<div class="card info">
+  <span class="severity ok">通过</span>
+  <h3>多实例检测（正确）</h3>
+  <table>
+    <tr><th>检测维度</th><th>窗口</th><th>阈值</th><th>状态</th></tr>
+    <tr><td>指纹不匹配</td><td>24h</td><td>3 次</td><td><span class="badge green">两阶段+幂等</span></td></tr>
+    <tr><td>IP 不匹配</td><td>60min</td><td>2 次</td><td><span class="badge green">两阶段+幂等</span></td></tr>
+    <tr><td>客户端本地检测</td><td>N/A</td><td>多 token 文件</td><td><span class="badge green">兜底</span></td></tr>
+    <tr><td>REBINDING 跳过</td><td colspan="2">换机期间不触发多实例检测</td><td><span class="badge green">正确</span></td></tr>
+    <tr><td>黑名单双校验</td><td colspan="2">activate + heartbeat + check 三处均校验</td><td><span class="badge green">正确</span></td></tr>
+  </table>
+</div>
+
+<div class="card info">
+  <span class="severity ok">通过</span>
+  <h3>离线防护（正确）</h3>
+  <table>
+    <tr><th>检查项</th><th>状态</th><th>说明</th></tr>
+    <tr><td>单调时钟</td><td><span class="badge green">正确</span></td><td>btime + /proc/uptime 双源取 max，防系统时间回拨</td></tr>
+    <tr><td>单调文件删除检测</td><td><span class="badge green">正确</span></td><td>WatchService 监听 + tampered 标志 → trustedNow=MAX_VALUE → 锁死</td></tr>
+    <tr><td>铁律 9</td><td><span class="badge green">正确</span></td><td>token 存在但单调文件缺失 → 拒绝启动</td></tr>
+    <tr><td>离线宽限期</td><td><span class="badge green">正确</span></td><td>7 天，token 过期才锁死，服务器挂了不锁死</td></tr>
+    <tr><td>token 续签</td><td><span class="badge green">正确</span></td><td>剩余寿命 < 7 天时心跳重签，14=7+7 安全余量</td></tr>
+    <tr><td>离线锁死</td><td><span class="badge green">正确</span></td><td>token 过期 → OFFLINE_LOCK → 拒绝所有核心操作</td></tr>
+  </table>
+</div>
+
+<div class="card info">
+  <span class="severity ok">通过</span>
+  <h3>完整性自检（正确，设计有意为之的边界）</h3>
+  <table>
+    <tr><th>检查项</th><th>状态</th><th>说明</th></tr>
+    <tr><td>启动期全量校验</td><td><span class="badge green">正确</span></td><td>14 个关键 class SHA-256 校验</td></tr>
+    <tr><td>算薪前全量校验</td><td><span class="badge green">正确</span></td><td>高价值操作触发全量校验</td></tr>
+    <tr><td>定时巡检</td><td><span class="badge green">正确</span></td><td>每小时一次全量校验</td></tr>
+    <tr><td>快速校验</td><td><span class="badge green">正确</span></td><td>4 个核心 class，高频调用用</td></tr>
+    <tr><td>内嵌 checksums</td><td><span class="badge orange">设计边界</span></td><td>JAR 内，可被同时替换（M3）</td></tr>
+    <tr><td>外部 checksums</td><td><span class="badge green">降级方案</span></td><td>首次部署生成，可由运维锁权限</td></tr>
+    <tr><td>自校验</td><td><span class="badge green">正确</span></td><td>IntegrityChecker.class 自身在校验列表中</td></tr>
+  </table>
+</div>
+
+<div class="card info">
+  <span class="severity ok">通过</span>
+  <h3>冻结规则与 Nginx 防护（正确）</h3>
+  <table>
+    <tr><th>检查项</th><th>状态</th><th>说明</th></tr>
+    <tr><td>鉴权面限流</td><td><span class="badge green">正确</span></td><td><code>limit_req zone=auth rate=20r/m burst=40</code></td></tr>
+    <tr><td>管理面 IP 白名单 + Basic Auth</td><td><span class="badge green">正确</span></td><td><code>satisfy any</code> + IP allow/deny + auth_basic</td></tr>
+    <tr><td>管理面限流</td><td><span class="badge green">正确</span></td><td>仅非白名单 IP 被限流</td></tr>
+    <tr><td>授权判定走 200 + clientMode</td><td><span class="badge green">正确</span></td><td>受限也返回 200，不泄露内部状态</td></tr>
+    <tr><td>签名错误 → 401</td><td><span class="badge green">正确</span></td><td>SIGNATURE_INVALID 直接抛 401</td></tr>
+    <tr><td>并发冲突 → 409</td><td><span class="badge green">正确</span></td><td>CannotAcquireLockException → CONCURRENT_ACTIVATE</td></tr>
+    <tr><td>HTTP→HTTPS 跳转</td><td><span class="badge green">正确</span></td><td>80 端口仅 ACME + 301</td></tr>
+    <tr><td>默认 server 444</td><td><span class="badge green">正确</span></td><td>未匹配 host 的 SNI 请求直接断开</td></tr>
+  </table>
+</div>
+
+<h2 id="recommendation">建议修复优先级</h2>
+
+<div class="card info">
+  <table>
+    <tr><th>优先级</th><th>风险</th><th>建议动作</th><th>工作量</th></tr>
+    <tr><td><span class="badge orange">P2</span></td><td>M1: new ObjectMapper() 不一致</td><td>统一注入 Spring ObjectMapper Bean</td><td>小（改 2 个文件）</td></tr>
+    <tr><td><span class="badge blue">P3</span></td><td>M2: SSL Pinning 从配置读取</td><td>短期保持，长期改为编译时常量</td><td>中（需重构 PinnedTrustManager）</td></tr>
+    <tr><td><span class="badge blue">P3</span></td><td>M3: checksums 同在 JAR 内</td><td>短期保持，长期改为服务端签名下发</td><td>大（需新增接口）</td></tr>
+    <tr><td><span class="badge blue">P4</span></td><td>L1-L4 低危</td><td>保持现状，记录在设计文档中</td><td>无</td></tr>
+  </table>
+  
+  <h3>总结</h3>
+  <p>当前授权体系<strong>没有高危安全风险</strong>。所有剩余风险要么是设计有意为之的边界（M2、M3、L1、L4 有注释明确承认），要么是低风险的一致性问题（M1、L2、L3 有多重兜底机制）。核心密码学机制（RS256 签名/验签、指纹绑定、黑名单、多实例检测、单调时钟、完整性自检）均正确实现且服务端/客户端对齐。</p>
+</div>
+
+</div>
+</body>
+</html>

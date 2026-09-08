@@ -6,7 +6,6 @@ import com.panjia.console.common.enums.FingerprintStatus;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
 import com.panjia.console.common.util.AuthCodeGenerator;
-import com.panjia.console.common.util.FingerprintUtils;
 import com.panjia.console.license.domain.AuthCode;
 import com.panjia.console.license.domain.FingerprintBinding;
 import com.panjia.console.license.domain.LicenseContent;
@@ -20,12 +19,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.ObjectMapper;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -48,6 +47,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ActivateService {
 
+    /**
+     * 幂等缓存 TTL（5 分钟）。覆盖客户端网络抖动重试窗口。
+     */
+    private static final Duration IDEMPOTENT_TTL = Duration.ofMinutes(5);
+
+    /**
+     * ★ H3 安全修复：幂等存储委托给 IdempotentStore 接口。
+     * 单实例 → LocalIdempotentStore（ConcurrentHashMap）；
+     * 集群部署 → 切换为分布式实现（如 Redis），只需实现 IdempotentStore 接口即可。
+     */
+    private final IdempotentStore idempotentStore;
+    private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
+
     private final AuthCodeMapper authCodeMapper;
     private final FingerprintBindingMapper fingerprintBindingMapper;
     private final LicenseContentMapper licenseContentMapper;
@@ -68,13 +81,65 @@ public class ActivateService {
      * 6. 事务外签发 JWT
      *
      * @param authCode       授权码
-     * @param fingerprint    指纹原文
+     * @param fingerprint    指纹原文（客户端 sha256(hostMachineId|instanceId) 输出）
      * @param productVersion 产品版本
      * @param company        公司名称（可选）
+     * @param instanceId     客户端实例 ID（可选，仅审计用，未持久化）
+     * @param requestId      幂等键（可选，UUID v4 推荐）。同一 (authCode, requestId) 重复调用返回同一结果
      * @return 激活结果（JWT + offlineExpireAt）
      */
-    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public ActivateResult activate(String authCode, String fingerprint, String productVersion, String company) {
+    public ActivateResult activate(String authCode, String fingerprint, String productVersion,
+                                   String company, String instanceId, String requestId) {
+        // ★ S-4 修复：低频主动清扫（摊销到请求里，避免单独起定时线程）
+        if (idempotentStore.size() > 5_000) {
+            idempotentStore.sweepExpired();
+        }
+
+        // ★ P1-2：幂等短路。命中已成功记录直接返回，避免重试进入 409 CONCURRENT_ACTIVATE 死循环。
+        if (requestId != null && !requestId.isBlank()) {
+            String cacheKey = buildIdempotentKey(authCode, requestId);
+            String cachedJson = idempotentStore.get(cacheKey);
+            if (cachedJson != null) {
+                ActivateResult cached = deserializeResult(cachedJson);
+                if (cached != null) {
+                    log.info("[req={}] [activate] Idempotent hit: authCode={}",
+                            requestId, AuthCodeGenerator.mask(authCode));
+                    return cached;
+                }
+                // 反序列化失败 → 清除坏缓存，降级走完整流程
+                log.warn("[req={}] [activate] Idempotent cache deserialize failed, falling through", requestId);
+                idempotentStore.remove(cacheKey);
+            }
+        }
+
+        // ★ 自调用事务修复：用 TransactionTemplate 显式包裹事务边界。
+        // 旧代码 this.doActivate() 是自调用，Spring AOP 代理不拦截 → @Transactional 失效 →
+        // SELECT ... FOR UPDATE 在无事务下运行，行锁提交后立即释放，并发控制形同虚设。
+        // TransactionTemplate.execute() 直接通过 PlatformTransactionManager 开启事务，
+        // 不依赖 AOP 代理，自调用也能正确启用事务。
+        ActivateResult result = transactionTemplate.execute(status ->
+                doActivate(authCode, fingerprint, productVersion, company, instanceId, requestId));
+
+        // 仅成功路径写入幂等缓存（H3：通过 IdempotentStore 接口，支持分布式扩展）
+        if (requestId != null && !requestId.isBlank()) {
+            String cacheKey = buildIdempotentKey(authCode, requestId);
+            String serialized = serializeResult(result);
+            if (serialized != null) {
+                idempotentStore.put(cacheKey, serialized, IDEMPOTENT_TTL);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 实际的激活流程
+     * <p>
+     * ★ 自调用事务修复：事务由 activate() 中的 TransactionTemplate 显式管理，
+     * 此方法不再需要 @Transactional 注解（自调用下该注解本就不生效）。
+     * 改为 private，防止外部绕过事务直接调用。
+     */
+    private ActivateResult doActivate(String authCode, String fingerprint, String productVersion,
+                                      String company, String instanceId, String requestId) {
         try {
             // 第一步：锁授权码行（★ 并发控制核心）
             AuthCode authCodeEntity = authCodeMapper.selectByAuthCodeForUpdate(authCode);
@@ -108,7 +173,9 @@ public class ActivateService {
             }
 
             Long authCodeId = authCodeEntity.getId();
-            String fpHash = FingerprintUtils.computeFpHash(authCode, fingerprint, productVersion);
+            // P0-2 修复：客户端已发送 fingerprint = sha256(hostMachineId|instanceId)（即 HardwareFingerprint.calculateHash() 输出）
+            //   控制台不再做二次哈希，直接使用客户端传来的哈希作为 fpHash 与服务端对齐
+            String fpHash = fingerprint;
 
             // 第三步：锁 ACTIVE 指纹绑定
             FingerprintBinding activeBinding = fingerprintBindingMapper.selectActiveForUpdate(authCodeId);
@@ -123,6 +190,7 @@ public class ActivateService {
                 newBinding.setFpHash(fpHash);
                 newBinding.setFingerprint(fingerprint);
                 newBinding.setProductVersion(productVersion);
+                newBinding.setInstanceId(instanceId); // 仅审计，当前未写入 DB 列
                 newBinding.setStatus(FingerprintStatus.ACTIVE.name());
                 newBinding.setBoundAt(now);
                 fingerprintBindingMapper.insert(newBinding);
@@ -135,11 +203,13 @@ public class ActivateService {
                     authCodeMapper.updateById(authCodeEntity);
                 }
 
-                log.info("New fingerprint binding: authCode={}", AuthCodeGenerator.mask(authCode));
+                log.info("[req={}] [activate] New fingerprint binding: authCode={}, instanceId={}",
+                        requestId, AuthCodeGenerator.mask(authCode), instanceId);
 
             } else if (activeBinding.getFpHash().equals(fpHash)) {
                 // 场景 B：续期匹配 —— 同一指纹，不做操作（仅刷新）
-                log.debug("Fingerprint match (renew): authCode={}", AuthCodeGenerator.mask(authCode));
+                log.debug("[req={}] [activate] Fingerprint match (renew): authCode={}, instanceId={}",
+                        requestId, AuthCodeGenerator.mask(authCode), instanceId);
 
             } else {
                 // 场景 C：不同指纹 + 已有 ACTIVE 绑定
@@ -156,6 +226,7 @@ public class ActivateService {
                     FingerprintBinding newBinding = new FingerprintBinding();
                     newBinding.setAuthCodeId(authCodeId);
                     newBinding.setFpHash(fpHash);
+                    newBinding.setInstanceId(instanceId);
                     newBinding.setStatus(FingerprintStatus.ACTIVE.name());
                     newBinding.setBoundAt(now);
                     fingerprintBindingMapper.insert(newBinding);
@@ -166,7 +237,8 @@ public class ActivateService {
                     authCodeEntity.setUpdatedAt(now);
                     authCodeMapper.updateById(authCodeEntity);
 
-                    log.info("Fingerprint rebinded: authCode={}", AuthCodeGenerator.mask(authCode));
+                    log.info("[req={}] [activate] Fingerprint rebinded: authCode={}, instanceId={}",
+                            requestId, AuthCodeGenerator.mask(authCode), instanceId);
                 } else {
                     // ACTIVE 状态下指纹不匹配 → 多实例场景，抛出指纹不匹配
                     // 注意：多实例两阶段检测在 HeartbeatService 中处理
@@ -217,10 +289,42 @@ public class ActivateService {
 
         } catch (DuplicateKeyException e) {
             // partial unique index 兜底触发（业务层行锁已规避，但极端并发仍可能命中）
-            log.warn("DB conflict on activate: authCode={}", AuthCodeGenerator.mask(authCode));
+            log.warn("[req={}] [activate] DB conflict on activate: authCode={}", requestId, AuthCodeGenerator.mask(authCode));
             throw new LicenseException(LicenseErrorCode.DB_CONFLICT, e);
         }
         // 注意：LockTimeoutException 等由上层统一捕获映射为 CONCURRENT_ACTIVATE
+    }
+
+    /**
+     * 幂等缓存 key。包含 authCode 防止不同授权码之间串扰。
+     */
+    private String buildIdempotentKey(String authCode, String requestId) {
+        return authCode + "|" + requestId;
+    }
+
+    /**
+     * ★ H3 修复：序列化 ActivateResult 为 JSON，供 IdempotentStore 存储。
+     * 使用 Spring 注入的 ObjectMapper（已注册 JavaTimeModule，支持 OffsetDateTime）。
+     */
+    private String serializeResult(ActivateResult result) {
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            log.error("Failed to serialize ActivateResult for idempotent cache", e);
+            return null;
+        }
+    }
+
+    /**
+     * ★ H3 修复：从 JSON 反序列化 ActivateResult。
+     */
+    private ActivateResult deserializeResult(String json) {
+        try {
+            return objectMapper.readValue(json, ActivateResult.class);
+        } catch (Exception e) {
+            log.error("Failed to deserialize ActivateResult from idempotent cache", e);
+            return null;
+        }
     }
 
     /**
@@ -238,6 +342,7 @@ public class ActivateService {
      */
     @lombok.Data
     @lombok.AllArgsConstructor
+    @lombok.NoArgsConstructor
     public static class ActivateResult {
         private LicenseJwtClaims claims;
         private OffsetDateTime offlineExpireAt;
@@ -252,9 +357,8 @@ public class ActivateService {
             return Collections.emptyList();
         }
         try {
-            tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
-            return mapper.readValue(capabilitiesJson,
-                    mapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            return objectMapper.readValue(capabilitiesJson,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
         } catch (Exception e) {
             log.warn("Failed to parse capabilities: {}", e.getMessage());
             return Collections.emptyList();

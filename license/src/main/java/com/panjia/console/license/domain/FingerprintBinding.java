@@ -1,6 +1,7 @@
 package com.panjia.console.license.domain;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -38,6 +39,15 @@ public class FingerprintBinding implements Serializable {
 
     /** 客户端产品版本（激活时上报） */
     private String productVersion;
+
+    /**
+     * 客户端实例 ID（仅内存传递，不持久化）
+     * <p>
+     * 当前数据库 schema 未包含 instance_id 列；保留 Java 字段便于后续补列迁移，
+     * 现阶段由 service 层用于审计日志关联。
+     */
+    @TableField(exist = false)
+    private String instanceId;
 
     /** 状态：ACTIVE/INVALIDATED */
     private String status;

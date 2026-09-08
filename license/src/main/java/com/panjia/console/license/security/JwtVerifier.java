@@ -33,6 +33,10 @@ public class JwtVerifier {
 
     /**
      * 验签 JWT 并解析 claims
+     * <p>
+     * ★ S-5 修复：验签后显式断言 alg=RS256（与客户端 LicenseVerifier 对齐）。
+     * jjwt 解析器本身对密钥/算法匹配有隐式防护，此处显式断言作为纵深防御，
+     * 防止未来依赖升级或解析配置变化导致 alg confusion（如 HS256 用公钥当 HMAC 密钥）。
      *
      * @param jwtToken JWT 字符串
      * @param publicKey 公钥（PEM 格式或 Base64 编码）
@@ -41,10 +45,19 @@ public class JwtVerifier {
      */
     public Jws<Claims> verify(String jwtToken, PublicKey publicKey) {
         try {
-            return Jwts.parser()
+            Jws<Claims> jws = Jwts.parser()
                     .verifyWith(publicKey)
+                    .clock(() -> new java.util.Date(System.currentTimeMillis()))
+                    .clockSkewSeconds(config.getClockSkewSeconds())
                     .build()
                     .parseSignedClaims(jwtToken);
+            // 显式算法断言：非 RS256 一律拒绝
+            String alg = jws.getHeader().getAlgorithm();
+            if (!"RS256".equals(alg)) {
+                log.warn("JWT rejected: unexpected algorithm [{}], expected RS256", alg);
+                throw new LicenseException(LicenseErrorCode.SIGNATURE_INVALID);
+            }
+            return jws;
         } catch (JwtException e) {
             log.warn("JWT signature verification failed: {}", e.getMessage());
             throw new LicenseException(LicenseErrorCode.SIGNATURE_INVALID, e);

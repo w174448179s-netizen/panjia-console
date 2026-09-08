@@ -5,14 +5,19 @@ import java.security.SecureRandom;
 /**
  * 授权码生成器
  * <p>
- * 格式：PJ-XXXX-XXXX（大写字母和数字，排除易混淆字符）
+ * 格式：PJ-XXXX-XXXX-XXXX（大写字母和数字，排除易混淆字符）。
+ * <p>
+ * ★ S-2 修复：2 段（31^8 ≈ 2^39.6）在公网无限速场景下可被撞库
+ * （1 万有效码时期望 ~8.5 亿次请求即命中）。扩到 3 段（31^12 ≈ 2^59.4）后
+ * 撞库在算力上不可行。存量 2 段旧码不受影响（服务端按字符串精确匹配），
+ * 仅新生成的授权码为新格式。
  */
 public class AuthCodeGenerator {
 
     /** 排除易混淆字符：0、O、I、L、1 */
     private static final String CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private static final int SEGMENT_LENGTH = 4;
-    private static final int SEGMENTS = 2;
+    private static final int SEGMENTS = 3;
     private static final String PREFIX = "PJ";
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -21,7 +26,7 @@ public class AuthCodeGenerator {
     }
 
     /**
-     * 生成授权码：PJ-XXXX-XXXX
+     * 生成授权码：PJ-XXXX-XXXX-XXXX（S-2：3 段，熵 2^59.4）
      *
      * @return 授权码字符串
      */

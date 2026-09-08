@@ -5,7 +5,6 @@ import com.panjia.console.common.enums.*;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
 import com.panjia.console.common.util.AuthCodeGenerator;
-import com.panjia.console.common.util.FingerprintUtils;
 import com.panjia.console.license.domain.*;
 import com.panjia.console.license.mapper.*;
 import com.panjia.console.license.security.JwtConfigProperties;
@@ -29,8 +28,13 @@ import java.time.OffsetDateTime;
  * <ul>
  *   <li>心跳请求不含 clientMode，服务端自行计算</li>
  *   <li>客户端只负责执行服务端下发的 clientMode</li>
- *   <li>心跳不刷新 JWT，只返回 offlineExpireAt</li>
  * </ul>
+ * <p>
+ * ★ P0-B 修复（心跳续签）：
+ * 校验全部通过（clientMode=NORMAL）且 token 剩余寿命低于续签阈值
+ * （tokenRenewThresholdDays，默认 7 天）时，基于当前授权重签 JWT 并随心跳
+ * 响应的 token 字段下发。客户端 LicenseServiceImpl.renewToken 验签后无感替换。
+ * 受限（RESTRICT）客户端不续签——不给受限授权延长密码学有效期。
  * <p>
  * 流程（§4.6）：
  * 1. JWT 校验（四步 + licenseVersion⑤ + 黑名单⑥）
@@ -38,7 +42,8 @@ import java.time.OffsetDateTime;
  * 3. 服务端自行计算 clientMode
  * 4. 刷新 offlineExpireAt = now + 7d
  * 5. INSERT t_heartbeat_record
- * 6. 返回 { offlineExpireAt, clientMode }
+ * 6. token 剩余寿命不足 → 重签 JWT 随响应下发
+ * 7. 返回 { offlineExpireAt, clientMode, token? }
  */
 @Slf4j
 @Service
@@ -94,9 +99,15 @@ public class HeartbeatService {
                 throw new LicenseException(LicenseErrorCode.AUTH_CODE_NOT_FOUND);
             }
 
-            // 第三步：重算指纹哈希比对
-            fpHash = FingerprintUtils.computeFpHash(authCodeStr, fingerprint, claims.getPlan());
-            if (!fpHash.equals(claims.getFpHash())) {
+            // 第三步：指纹比对
+            // P0-2 修复：客户端 heartbeat 请求里的 fingerprint 已经是 calculateHash() 输出（sha256(hostMachineId|instanceId)）
+            //   控制台直接使用客户端传来的哈希作为 fpHash，与 JWT 签发的 fingerprintHash 对齐
+            // P2 修复：fingerprint 判空守卫。缺失时直接受限，避免下方 equals 调用 NPE
+            fpHash = fingerprint;
+            if (fpHash == null || fpHash.isBlank()) {
+                clientMode = ClientMode.RESTRICT;
+                restrictReason = LicenseErrorCode.FP_MISMATCH;
+            } else if (claims.getFpHash() != null && !fpHash.equals(claims.getFpHash())) {
                 clientMode = ClientMode.RESTRICT;
                 restrictReason = LicenseErrorCode.FP_MISMATCH;
             }
@@ -172,8 +183,34 @@ public class HeartbeatService {
         }
 
         // 第八步：计算 offlineExpireAt
-        //    注意：心跳只刷新 offlineExpireAt，不签发新 JWT（M1 醒目提示）
         OffsetDateTime offlineExpireAt = now.plusDays(config.getOfflineExpireDays());
+
+        // ★ 第九步（P0-B 修复）：token 自动续签
+        //    仅校验全部通过（clientMode=NORMAL）的合法客户端续签；
+        //    剩余寿命 < tokenRenewThresholdDays 时重签，客户端 renewToken 无感替换。
+        //    阈值必须 ≥ 客户端离线宽限期，保证断网瞬间 token 剩余寿命覆盖整个宽限期。
+        String renewedToken = null;
+        if (clientMode == ClientMode.NORMAL && claims != null && claims.getExpiresAt() != null) {
+            java.time.Duration remaining = java.time.Duration.between(now, claims.getExpiresAt());
+            java.time.Duration renewThreshold = java.time.Duration.ofDays(
+                    Math.max(1, config.getTokenRenewThresholdDays()));
+            if (remaining.compareTo(renewThreshold) < 0) {
+                try {
+                    LicenseJwtClaims renewClaims = claims.toBuilder()
+                            .clientMode(ClientMode.NORMAL.name())
+                            .offlineExpireAt(offlineExpireAt)
+                            .issuedAt(now)
+                            .build();
+                    renewedToken = signatureEngine.issueJwt(renewClaims);
+                    log.info("Token renewed in heartbeat: authCode={}, remaining={}h < threshold={}h",
+                            AuthCodeGenerator.mask(claims.getAuthCode()),
+                            remaining.toHours(), renewThreshold.toHours());
+                } catch (Exception e) {
+                    // 续签失败不阻断心跳本身，下一次心跳会再尝试
+                    log.error("Failed to renew token in heartbeat", e);
+                }
+            }
+        }
 
         // 第九步：写入心跳记录（即使受限也记录，用于诊断）
         try {
@@ -224,6 +261,7 @@ public class HeartbeatService {
                 .offlineExpireAt(offlineExpireAt)
                 .clientMode(clientMode.name())
                 .restrictCode(restrictReason != null ? restrictReason.getCode() : null)
+                .token(renewedToken)
                 .build();
     }
 
@@ -241,5 +279,11 @@ public class HeartbeatService {
         private String clientMode;
         /** 受限原因错误码（仅受限模式时有值） */
         private String restrictCode;
+        /**
+         * 续签后的新 JWT（P0-B）。
+         * 仅当客户端校验全部通过且 token 剩余寿命低于续签阈值时非空；
+         * 客户端收到后验签并无感替换（renewToken）。
+         */
+        private String token;
     }
 }

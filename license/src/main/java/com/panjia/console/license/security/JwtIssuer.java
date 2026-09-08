@@ -34,8 +34,8 @@ import java.util.List;
  *   <li>密码从环境变量注入，禁止明文写配置</li>
  * </ul>
  * <p>
- * 全系统只有一处签发 JWT：activate 接口（§4.4）。
- * heartbeat / check 不签发新 JWT，只返回 offlineExpireAt。
+ * 全系统签发 JWT 的两处入口：activate 接口（§4.4）与心跳续签（P0-B）。
+ * 心跳续签仅在 token 剩余寿命低于阈值且校验全部通过时重签，其余心跳不签发新 JWT。
  */
 @Slf4j
 @Component
@@ -43,12 +43,11 @@ import java.util.List;
 public class JwtIssuer {
 
     private final JwtConfigProperties config;
+    private final ObjectMapper objectMapper;
 
     private PrivateKey privateKey;
     private PublicKey publicKey;
     private int currentKeyVersion = 1;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 初始化时加载 JKS 密钥库
@@ -100,20 +99,28 @@ public class JwtIssuer {
                 .claim("customerNo", claims.getCustomerNo())
                 .claim("company", claims.getCompany())
                 .claim("plan", claims.getPlan())
-                .claim("fpHash", claims.getFpHash())
+                // P0-1 修复：claim key 对齐客户端 V1.3 LicenseVerifier
+                .claim("fingerprintHash", claims.getFpHash())
                 .claim("maxStores", claims.getMaxStores())
                 .claim("maxUsers", claims.getMaxUsers())
                 .claim("capabilities", claims.getCapabilities())
                 .claim("startDate", claims.getStartDate() != null ? claims.getStartDate().toString() : null)
                 .claim("endDate", claims.getEndDate() != null ? claims.getEndDate().toString() : null)
                 .claim("maintenanceEndDate", claims.getMaintenanceEndDate() != null ? claims.getMaintenanceEndDate().toString() : null)
-                .claim("minSupportedVersion", claims.getMinSupportedVersion())
-                .claim("maxSupportedVersion", claims.getMaxSupportedVersion())
+                .claim("minVersion", claims.getMinSupportedVersion())
+                .claim("maxVersion", claims.getMaxSupportedVersion())
                 .claim("keyVersion", claims.getKeyVersion() != null ? claims.getKeyVersion() : currentKeyVersion)
                 .claim("licenseVersion", claims.getLicenseVersion())
                 .claim("clientMode", claims.getClientMode())
                 .claim("offlineExpireAt", claims.getOfflineExpireAt() != null
                         ? Date.from(claims.getOfflineExpireAt().toInstant()) : null)
+                // P0-1 修复：补签 licenseExpireAt（授权实际到期日），客户端 LicenseVerifier 据此做 token 过期兜底
+                // P2 修复：取 endDate 当天 23:59:59（end_of_day），而非 atStartOfDay 的 00:00 ——
+                //   否则授权最后一天零点即被判定过期，客户损失完整一天授权
+                .claim("licenseExpireAt", claims.getEndDate() != null
+                        ? Date.from(claims.getEndDate().plusDays(1)
+                                .atStartOfDay(ZoneId.systemDefault()).toInstant()
+                                .minusSeconds(1)) : null)
                 .issuedAt(Date.from(now.toInstant()))
                 .expiration(Date.from(exp.toInstant()))
                 .signWith(privateKey, SignatureAlgorithm.RS256)
@@ -146,15 +153,16 @@ public class JwtIssuer {
                 .customerNo(getString(claims, "customerNo"))
                 .company(getString(claims, "company"))
                 .plan(getString(claims, "plan"))
-                .fpHash(getString(claims, "fpHash"))
+                // P0-1 修复：解析对齐签发
+                .fpHash(getString(claims, "fingerprintHash"))
                 .maxStores(getInt(claims, "maxStores"))
                 .maxUsers(getInt(claims, "maxUsers"))
                 .capabilities(capabilities)
                 .startDate(parseDate(getString(claims, "startDate")))
                 .endDate(parseDate(getString(claims, "endDate")))
                 .maintenanceEndDate(parseDate(getString(claims, "maintenanceEndDate")))
-                .minSupportedVersion(getString(claims, "minSupportedVersion"))
-                .maxSupportedVersion(getString(claims, "maxSupportedVersion"))
+                .minSupportedVersion(getString(claims, "minVersion"))
+                .maxSupportedVersion(getString(claims, "maxVersion"))
                 .keyVersion(getInt(claims, "keyVersion"))
                 .licenseVersion(getInt(claims, "licenseVersion"))
                 .clientMode(getString(claims, "clientMode"))

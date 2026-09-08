@@ -1,7 +1,9 @@
 package com.panjia.console.license.security;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -14,7 +16,9 @@ import java.util.List;
  * 所有字段与客户端 V1.1 对齐。
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class LicenseJwtClaims {
 
     /** 授权码 */

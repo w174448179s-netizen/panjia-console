@@ -52,8 +52,14 @@ panjia:
     jks-password: ${PANJIA_JKS_PASSWORD:}
     key-alias: panjia-license
     key-password: ${PANJIA_KEY_PASSWORD:}
-    # JWT 有效期（天）
-    jwt-expire-days: 7
+    # JWT 有效期（天）。
+    # P0-A/P0-B：14 = 续签阈值 7 天 + 离线宽限 7 天。
+    # 心跳会在 token 剩余寿命 < 7 天时自动重签下发，客户端无感续期；
+    # 即使某次续签失败，剩余 7 天仍覆盖完整离线宽限期，token 不会先于宽限锁死。
+    jwt-expire-days: 14
+    # 心跳续签阈值（天）：token 剩余寿命低于此值时，心跳响应携带新 token。
+    # 必须不小于客户端离线宽限期（7 天）。
+    token-renew-threshold-days: 7
     # 离线宽限（天）
     offline-expire-days: 7
     # 心跳归档保留天数
@@ -66,6 +72,17 @@ panjia:
     ip-mismatch-window-minutes: 60
     # IP 多实例确认次数，达到后拉黑
     ip-mismatch-confirm-count: 2
+    # ★ H2 安全修复：可信代理 CIDR 列表，解析 X-Forwarded-For 时跳过这些范围内的 IP
+    # 默认覆盖 Docker 三网段 + 回环地址。生产环境通过环境变量 PANJIA_TRUSTED_PROXIES 覆盖，
+    # 建议收窄为 nginx 容器实际 IP，如 PANJIA_TRUSTED_PROXIES=172.18.0.3/32
+    trusted-proxy-cidrs:
+      - 127.0.0.1/32
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    # ★ H3 安全修复：幂等缓存模式，local=进程内 ConcurrentHashMap（单实例），
+    # redis=分布式（需引入 Redis 依赖，当前不支持）。单实例部署用 local 足够。
+    idempotent-cache-type: local
 
   # 备份配置
   backup:

@@ -88,26 +88,32 @@ public class LicenseExceptionHandler {
 
     /**
      * 处理非法状态异常 → 400
+     * <p>
+     * ★ S-7 修复：响应不回传 ex.getMessage()（可能含内部实现细节），
+     * 详细信息只进日志。
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<AuthErrorResponse> handleIllegalState(IllegalStateException ex, HttpServletRequest request) {
         log.warn("Illegal state at [{}]: {}", request.getRequestURI(), ex.getMessage());
         AuthErrorResponse body = AuthErrorResponse.builder()
                 .code(LicenseErrorCode.INVALID_STATUS.getCode())
-                .message(ex.getMessage())
+                .message(LicenseErrorCode.INVALID_STATUS.getMessage())
                 .build();
         return ResponseEntity.badRequest().body(body);
     }
 
     /**
      * 处理非法参数异常 → 400
+     * <p>
+     * ★ S-7 修复：响应不回传 ex.getMessage()，统一返回通用文案，
+     * 防止内部异常信息（类名/SQL 片段/文件路径等）外泄。
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<AuthErrorResponse> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         log.warn("Illegal argument at [{}]: {}", request.getRequestURI(), ex.getMessage());
         AuthErrorResponse body = AuthErrorResponse.builder()
                 .code(LicenseErrorCode.BAD_REQUEST.getCode())
-                .message(ex.getMessage())
+                .message("参数非法")
                 .build();
         return ResponseEntity.badRequest().body(body);
     }

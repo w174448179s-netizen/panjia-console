@@ -1,5 +1,6 @@
 package com.panjia.console.license.controller.auth.dto;
 
+import com.panjia.console.common.util.TextSanitizer;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -10,6 +11,8 @@ import java.time.OffsetDateTime;
  * <p>
  * ★ P0-5 铁律：请求不含 clientMode，服务端始终自行计算。
  * 严禁信任客户端传入的运行模式。
+ * <p>
+ * ★ S-6 修复：instanceId 在 setter 层消毒控制字符，防 CRLF 日志注入。
  */
 @Data
 public class HeartbeatRequest {
@@ -30,4 +33,9 @@ public class HeartbeatRequest {
 
     /** 当前用户数 */
     private Integer currentUsers;
+
+    /** S-6：消毒控制字符，防日志注入 */
+    public void setInstanceId(String instanceId) {
+        this.instanceId = TextSanitizer.stripControlChars(instanceId);
+    }
 }
