@@ -1,6 +1,7 @@
 package com.panjia.console.license.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.license.api.dto.AlertRecordDTO;
 import com.panjia.console.license.api.dto.AlertSyncResult;
 import com.panjia.console.license.domain.AlertRecord;
@@ -55,7 +56,7 @@ public class AlertService {
         record.setTitle(title);
         record.setDetail(detail);
         record.setStatus("OPEN");
-        record.setOccurredAt(OffsetDateTime.now());
+        record.setOccurredAt(TimeUtils.now());
 
         try {
             alertRecordMapper.insert(record);

@@ -1,5 +1,6 @@
 package com.panjia.console.license.scheduler;
 
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.common.enums.AlertTrigger;
 import com.panjia.console.license.service.AlertService;
 import com.panjia.console.license.service.MultiInstanceService;
@@ -68,7 +69,7 @@ public class MultiInstancePendingCleanTask {
                             e.getMessage() != null ? e.getMessage().substring(0, 200) : "unknown")
             );
         } finally {
-            lastRunAt = OffsetDateTime.now();
+            lastRunAt = TimeUtils.now();
             running.set(false);
         }
     }

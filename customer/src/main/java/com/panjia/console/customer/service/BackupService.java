@@ -3,6 +3,7 @@ package com.panjia.console.customer.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.customer.domain.BackupRecord;
 import com.panjia.console.customer.mapper.BackupRecordMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -75,7 +76,7 @@ public class BackupService {
      * 创建备份（异步执行 pg_dump）
      */
     public BackupRecord createBackup(String backupType, String operator, String remark) {
-        String timestamp = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String timestamp = TimeUtils.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String fileName = "backup_" + (backupType == null ? "full" : backupType.toLowerCase()) + "_" + timestamp + ".dump";
         Path filePath = Paths.get(backupDir, fileName);
 
@@ -86,7 +87,7 @@ public class BackupService {
         record.setStatus("IN_PROGRESS");
         record.setOperator(operator);
         record.setRemark(remark);
-        record.setStartedAt(OffsetDateTime.now());
+        record.setStartedAt(TimeUtils.now());
         backupRecordMapper.insert(record);
 
         doBackupAsync(record.getId(), filePath);
@@ -172,7 +173,7 @@ public class BackupService {
             record.setFilePath(filePath);
         }
         if ("SUCCESS".equals(status) || "FAILED".equals(status)) {
-            record.setFinishedAt(OffsetDateTime.now());
+            record.setFinishedAt(TimeUtils.now());
         }
         backupRecordMapper.updateById(record);
     }

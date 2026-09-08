@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.customer.domain.AuthIssueRecord;
 import com.panjia.console.customer.mapper.AuthIssueRecordMapper;
 import com.panjia.console.license.api.LicenseEngine;
@@ -59,7 +60,7 @@ public class LicenseMgmtService {
         record.setEndDate(req.getEndDate());
         record.setMaintenanceEndDate(req.getMaintenanceEndDate());
         record.setOperator(req.getIssuedBy());
-        record.setIssueAt(OffsetDateTime.now());
+        record.setIssueAt(TimeUtils.now());
         authIssueRecordMapper.insert(record);
 
         return result;

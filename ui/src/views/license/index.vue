@@ -477,11 +477,12 @@ function formatTime(time: string) {
   return time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
 }
 
-/** 格式化纯日期（避免时区导致差一天） */
+/** 格式化纯日期（避免时区导致差一天），展示为当天 23:59:59，明确到期时间点 */
 function formatDate(date: string | null | undefined) {
   if (!date) return '-'
-  // 后端返回 LocalDate 字符串 YYYY-MM-DD，直接取前10位
-  return date.toString().slice(0, 10)
+  // 后端返回 LocalDate 字符串 YYYY-MM-DD，授权到期时间为当天 23:59:59（北京时间）
+  const d = date.toString().slice(0, 10)
+  return `${d} 23:59:59`
 }
 
 /** 把 Date 对象转成 YYYY-MM-DD 字符串（提交给后端时用，避免时区偏差） */

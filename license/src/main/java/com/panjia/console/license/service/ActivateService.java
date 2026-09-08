@@ -6,6 +6,7 @@ import com.panjia.console.common.enums.FingerprintStatus;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
 import com.panjia.console.common.util.AuthCodeGenerator;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.license.domain.AuthCode;
 import com.panjia.console.license.domain.FingerprintBinding;
 import com.panjia.console.license.domain.LicenseContent;
@@ -163,7 +164,7 @@ public class ActivateService {
 
             // ★ 实时过期判定（不依赖 status 字段，以 end_date 为准）
             if (authCodeEntity.getEndDate() != null
-                    && authCodeEntity.getEndDate().isBefore(LocalDate.now())) {
+                    && authCodeEntity.getEndDate().isBefore(TimeUtils.today())) {
                 throw new LicenseException(LicenseErrorCode.AUTH_EXPIRED);
             }
 
@@ -180,7 +181,7 @@ public class ActivateService {
             // 第三步：锁 ACTIVE 指纹绑定
             FingerprintBinding activeBinding = fingerprintBindingMapper.selectActiveForUpdate(authCodeId);
 
-            OffsetDateTime now = OffsetDateTime.now();
+            OffsetDateTime now = TimeUtils.now();
             boolean isNewBinding = false;
 
             if (activeBinding == null) {

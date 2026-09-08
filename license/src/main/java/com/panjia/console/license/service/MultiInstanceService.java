@@ -2,6 +2,7 @@ package com.panjia.console.license.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.common.enums.AlertTrigger;
 import com.panjia.console.common.enums.BlacklistReason;
 import com.panjia.console.license.domain.Blacklist;
@@ -49,7 +50,7 @@ public class MultiInstanceService {
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public void handleMultiInstanceDetected(Long authCodeId, String customerNo, String fpHash) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
 
         // 查询是否已有该指纹的 pending 记录
         LambdaQueryWrapper<MultiInstancePending> wrapper = new LambdaQueryWrapper<>();
@@ -162,7 +163,7 @@ public class MultiInstanceService {
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public void handleIpMismatchDetected(Long authCodeId, String customerNo, String clientIp) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
         String ipKey = "ip:" + clientIp;
 
         // 查询是否已有该 IP 的 pending 记录
@@ -264,7 +265,7 @@ public class MultiInstanceService {
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int cleanExpiredPending() {
-        OffsetDateTime cutoff = OffsetDateTime.now()
+        OffsetDateTime cutoff = TimeUtils.now()
                 .minusHours(config.getMultiInstanceWindowHours());
 
         LambdaQueryWrapper<MultiInstancePending> wrapper = new LambdaQueryWrapper<>();

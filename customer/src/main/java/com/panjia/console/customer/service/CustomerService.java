@@ -3,6 +3,7 @@ package com.panjia.console.customer.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.customer.domain.Customer;
 import com.panjia.console.customer.mapper.CustomerMapper;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +82,7 @@ public class CustomerService {
      * @return 创建后的客户
      */
     public Customer createCustomer(Customer customer) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
         customer.setId(null);
         customer.setCreatedAt(now);
         customer.setUpdatedAt(now);
@@ -98,7 +99,7 @@ public class CustomerService {
      * @return 更新后的客户
      */
     public Customer updateCustomer(Customer customer) {
-        customer.setUpdatedAt(OffsetDateTime.now());
+        customer.setUpdatedAt(TimeUtils.now());
         customerMapper.updateById(customer);
         log.info("Updated customer: id={}, customerNo={}", customer.getId(), customer.getCustomerNo());
         return customer;

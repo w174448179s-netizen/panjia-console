@@ -5,6 +5,7 @@ import com.panjia.console.common.enums.*;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
 import com.panjia.console.common.util.AuthCodeGenerator;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.license.domain.*;
 import com.panjia.console.license.mapper.*;
 import com.panjia.console.license.security.JwtConfigProperties;
@@ -77,7 +78,7 @@ public class HeartbeatService {
     public HeartbeatResponse heartbeat(String jwtToken, String instanceId, String fingerprint,
                                        OffsetDateTime reportedAt, Integer currentStores,
                                        Integer currentUsers, String clientIp, String rawJson) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
         ClientMode clientMode = ClientMode.NORMAL;
         LicenseErrorCode restrictReason = null;
         LicenseJwtClaims claims = null;
@@ -153,7 +154,7 @@ public class HeartbeatService {
                     clientMode = ClientMode.RESTRICT;
                     restrictReason = LicenseErrorCode.TOKEN_REVOKED;
                 } else if (authCode.getEndDate() != null
-                        && authCode.getEndDate().isBefore(LocalDate.now())) {
+                        && authCode.getEndDate().isBefore(TimeUtils.today())) {
                     clientMode = ClientMode.RESTRICT;
                     restrictReason = LicenseErrorCode.AUTH_EXPIRED;
                 }

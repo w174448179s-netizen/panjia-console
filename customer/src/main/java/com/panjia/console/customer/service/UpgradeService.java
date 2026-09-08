@@ -3,6 +3,7 @@ package com.panjia.console.customer.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.customer.domain.ProductVersion;
 import com.panjia.console.customer.domain.UpgradeRecord;
 import com.panjia.console.customer.mapper.ProductVersionMapper;
@@ -69,7 +70,7 @@ public class UpgradeService {
         record.setStatus("PENDING");
         record.setOperator(operator);
         record.setBackupId(backupId);
-        record.setStartedAt(OffsetDateTime.now());
+        record.setStartedAt(TimeUtils.now());
         upgradeRecordMapper.insert(record);
 
         log.info("Created upgrade task: id={}, from={}, to={}", record.getId(), fromVersion, toVersion);
@@ -91,7 +92,7 @@ public class UpgradeService {
         record.setStatus(status);
         record.setErrorMsg(errorMsg);
         if ("SUCCESS".equals(status) || "FAILED".equals(status) || "ROLLBACK_SUCCESS".equals(status)) {
-            record.setFinishedAt(OffsetDateTime.now());
+            record.setFinishedAt(TimeUtils.now());
         }
         upgradeRecordMapper.updateById(record);
         log.info("Updated upgrade status: id={}, status={}", id, status);
@@ -116,7 +117,7 @@ public class UpgradeService {
      */
     public ProductVersion addProductVersion(ProductVersion version) {
         version.setId(null);
-        version.setCreatedAt(OffsetDateTime.now());
+        version.setCreatedAt(TimeUtils.now());
         productVersionMapper.insert(version);
         log.info("Added product version: id={}, version={}", version.getId(), version.getVersion());
         return version;

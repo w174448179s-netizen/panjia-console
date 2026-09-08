@@ -3,6 +3,7 @@ package com.panjia.console.license.api;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.common.enums.AuthCodeStatus;
 import com.panjia.console.license.api.dto.*;
 import com.panjia.console.license.domain.AuthCode;
@@ -161,7 +162,7 @@ public class LicenseEngineImpl implements LicenseEngine {
         if (lastReceivedAt == null) {
             return "UNKNOWN";
         }
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
         long hoursSinceLast = java.time.Duration.between(lastReceivedAt, now).toHours();
 
         if (hoursSinceLast <= 26) {

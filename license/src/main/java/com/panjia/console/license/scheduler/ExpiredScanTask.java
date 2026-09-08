@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.panjia.console.common.enums.AlertTrigger;
 import com.panjia.console.common.enums.AuthCodeStatus;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.license.domain.AuthCode;
 import com.panjia.console.license.mapper.AuthCodeMapper;
 import com.panjia.console.license.service.AlertService;
@@ -74,13 +75,13 @@ public class ExpiredScanTask {
 
         long processedCount = 0;
         boolean success = true;
-        OffsetDateTime startTime = OffsetDateTime.now();
+        OffsetDateTime startTime = TimeUtils.now();
 
         try {
             log.info("Expired scan task started at {}", startTime);
 
             Long lastId = 0L;
-            LocalDate today = LocalDate.now();
+            LocalDate today = TimeUtils.today();
 
             while (true) {
                 // 按 id 游标分批查询
@@ -103,7 +104,7 @@ public class ExpiredScanTask {
                         updateWrapper.eq(AuthCode::getId, authCode.getId())
                                 .eq(AuthCode::getStatus, AuthCodeStatus.ACTIVE.name()) // 乐观锁
                                 .set(AuthCode::getStatus, AuthCodeStatus.EXPIRED.name())
-                                .set(AuthCode::getUpdatedAt, OffsetDateTime.now());
+                                .set(AuthCode::getUpdatedAt, TimeUtils.now());
 
                         int updated = authCodeMapper.update(null, updateWrapper);
                         if (updated > 0) {
@@ -128,7 +129,7 @@ public class ExpiredScanTask {
 
             log.info("Expired scan task completed: processed={}, duration={}ms",
                     processedCount,
-                    java.time.Duration.between(startTime, OffsetDateTime.now()).toMillis());
+                    java.time.Duration.between(startTime, TimeUtils.now()).toMillis());
 
         } catch (Exception e) {
             success = false;
@@ -165,7 +166,7 @@ public class ExpiredScanTask {
             if (success) {
                 consecutiveFailDays.set(0);
             }
-            lastRunAt = OffsetDateTime.now();
+            lastRunAt = TimeUtils.now();
             lastProcessedCount = processedCount;
             running.set(false);
         }
@@ -192,6 +193,6 @@ public class ExpiredScanTask {
         if (lastRunAt == null) {
             return false;
         }
-        return java.time.Duration.between(lastRunAt, OffsetDateTime.now()).toHours() <= 48;
+        return java.time.Duration.between(lastRunAt, TimeUtils.now()).toHours() <= 48;
     }
 }
