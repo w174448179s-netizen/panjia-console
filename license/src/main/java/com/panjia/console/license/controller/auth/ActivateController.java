@@ -1,6 +1,7 @@
 package com.panjia.console.license.controller.auth;
 
 import tools.jackson.databind.ObjectMapper;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
 import com.panjia.console.common.util.ClientIpResolver;
@@ -131,7 +132,7 @@ public class ActivateController {
                 jwt,
                 request.getInstanceId(),
                 request.getFingerprint(),
-                request.getReportedAt() != null ? request.getReportedAt() : OffsetDateTime.now(),
+                request.getReportedAt() != null ? request.getReportedAt() : TimeUtils.now(),
                 request.getCurrentStores(),
                 request.getCurrentUsers(),
                 resolveClientIp(httpReq),

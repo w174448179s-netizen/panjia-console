@@ -3,6 +3,7 @@ package com.panjia.console.license.service;
 import com.panjia.console.common.enums.*;
 import com.panjia.console.common.exception.LicenseErrorCode;
 import com.panjia.console.common.exception.LicenseException;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.license.domain.AuthCode;
 import com.panjia.console.license.domain.FingerprintBinding;
 import com.panjia.console.license.domain.LicenseContent;
@@ -97,7 +98,7 @@ public class CheckService {
                     clientMode = ClientMode.RESTRICT;
                     restrictReason = LicenseErrorCode.TOKEN_REVOKED;
                 } else if (authCode.getEndDate() != null
-                        && authCode.getEndDate().isBefore(LocalDate.now())) {
+                        && authCode.getEndDate().isBefore(TimeUtils.today())) {
                     clientMode = ClientMode.RESTRICT;
                     restrictReason = LicenseErrorCode.AUTH_EXPIRED;
                 }

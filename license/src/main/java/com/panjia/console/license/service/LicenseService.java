@@ -2,6 +2,7 @@ package com.panjia.console.license.service;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.common.enums.AuthCodeStatus;
 import com.panjia.console.common.enums.BlacklistReason;
 import com.panjia.console.common.enums.FingerprintStatus;
@@ -103,7 +104,7 @@ public class LicenseService {
             authCodeEntity.setIsTest("TEST".equals(req.getLicenseType()));
             authCodeEntity.setRequestId(req.getRequestId());
             authCodeEntity.setIssuedBy(req.getIssuedBy());
-            authCodeEntity.setIssuedAt(OffsetDateTime.now());
+            authCodeEntity.setIssuedAt(TimeUtils.now());
             authCodeMapper.insert(authCodeEntity);
 
             // 第四步：插入 license_content v1（签发时创建，版本从 1 起）
@@ -121,7 +122,7 @@ public class LicenseService {
             content.setMaxSupportedVersion(req.getMaxSupportedVersion());
             content.setKeyVersion(keyVersion);
             content.setIsCurrent(true);
-            content.setEffectiveAt(OffsetDateTime.now());
+            content.setEffectiveAt(TimeUtils.now());
             licenseContentMapper.insert(content);
 
             log.info("License created: authCode={}, customerNo={}, licenseId={}",
@@ -171,9 +172,9 @@ public class LicenseService {
 
         // 更新授权状态
         entity.setStatus(AuthCodeStatus.REVOKED.name());
-        entity.setRevokedAt(OffsetDateTime.now());
+        entity.setRevokedAt(TimeUtils.now());
         entity.setRevokedReason(reason);
-        entity.setUpdatedAt(OffsetDateTime.now());
+        entity.setUpdatedAt(TimeUtils.now());
         authCodeMapper.updateById(entity);
 
         // 写入/更新黑名单（REVOKE 原因）
@@ -232,7 +233,7 @@ public class LicenseService {
             throw new IllegalStateException("仅已吊销的授权可恢复，当前状态：" + entity.getStatus());
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
 
         // 1. 状态切换：REVOKED → ACTIVE
         entity.setStatus(AuthCodeStatus.ACTIVE.name());
@@ -323,7 +324,7 @@ public class LicenseService {
             throw new IllegalStateException("已吊销的授权不能续期，请先恢复");
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
 
         // 1. 更新 t_auth_code（仅更新传入的非空字段）
         if (req.getEndDate() != null) {
@@ -412,7 +413,7 @@ public class LicenseService {
             throw new IllegalStateException("仅 ACTIVE 或 REBINDING 状态可换机，当前状态：" + entity.getStatus());
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
 
         // 第二步：锁并失效当前 ACTIVE 绑定
         FingerprintBinding activeBinding = fingerprintBindingMapper.selectActiveForUpdate(entity.getId());
@@ -473,7 +474,7 @@ public class LicenseService {
             throw new IllegalStateException("仅 REBINDING 状态可取消换机，当前状态：" + entity.getStatus());
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
 
         // 第二步：指纹处理（三选一，互斥）
         FingerprintBinding activeBinding = fingerprintBindingMapper.selectActiveForUpdate(entity.getId());

@@ -1,6 +1,7 @@
 package com.panjia.console.customer.security;
 
 import tools.jackson.databind.ObjectMapper;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.common.annotation.OpsLog;
 import com.panjia.console.common.dto.R;
 import com.panjia.console.customer.mapper.OpsLogMapper;
@@ -93,7 +94,7 @@ public class OperationLogAspect {
         record.setIp(ip);
         record.setParams(params);
         record.setResult(result);
-        record.setCreatedAt(OffsetDateTime.now());
+        record.setCreatedAt(TimeUtils.now());
         opsLogMapper.insert(record);
     }
 

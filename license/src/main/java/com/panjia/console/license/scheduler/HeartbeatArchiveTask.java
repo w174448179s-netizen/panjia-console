@@ -1,6 +1,7 @@
 package com.panjia.console.license.scheduler;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.common.enums.AlertTrigger;
 import com.panjia.console.license.domain.HeartbeatRecord;
 import com.panjia.console.license.mapper.HeartbeatRecordMapper;
@@ -69,12 +70,12 @@ public class HeartbeatArchiveTask {
 
         long migratedCount = 0;
         boolean success = true;
-        OffsetDateTime startTime = OffsetDateTime.now();
+        OffsetDateTime startTime = TimeUtils.now();
 
         try {
             log.info("Heartbeat archive task started at {}", startTime);
 
-            OffsetDateTime cutoff = OffsetDateTime.now()
+            OffsetDateTime cutoff = TimeUtils.now()
                     .minusDays(config.getHeartbeatRetentionDays());
 
             while (true) {
@@ -138,7 +139,7 @@ public class HeartbeatArchiveTask {
 
             log.info("Heartbeat archive task completed: migrated={}, totalCount={}, duration={}ms",
                     migratedCount, totalCount,
-                    java.time.Duration.between(startTime, OffsetDateTime.now()).toMillis());
+                    java.time.Duration.between(startTime, TimeUtils.now()).toMillis());
 
         } catch (Exception e) {
             success = false;
@@ -155,7 +156,7 @@ public class HeartbeatArchiveTask {
                             migratedCount)
             );
         } finally {
-            lastRunAt = OffsetDateTime.now();
+            lastRunAt = TimeUtils.now();
             lastMigratedCount = migratedCount;
             running.set(false);
         }

@@ -1,5 +1,6 @@
 package com.panjia.console.license.security;
 
+import com.panjia.console.common.util.TimeUtils;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
@@ -97,7 +98,7 @@ public class JwtIssuer {
      * @return JWT 字符串
      */
     public String issueToken(LicenseJwtClaims claims) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeUtils.now();
         OffsetDateTime exp = now.plusDays(config.getJwtExpireDays());
 
         return Jwts.builder()
