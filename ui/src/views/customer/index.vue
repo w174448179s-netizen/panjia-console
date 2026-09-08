@@ -68,6 +68,9 @@
         <el-form-item label="联系电话">
           <el-input v-model="formData.contactPhone" />
         </el-form-item>
+        <el-form-item label="当前版本">
+          <el-input v-model="formData.currentVersion" placeholder="如：6.0.0（留空表示未分配）" />
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="formData.remark" type="textarea" :rows="3" />
         </el-form-item>
@@ -108,6 +111,7 @@ const formData = reactive({
   customerName: '',
   contactPerson: '',
   contactPhone: '',
+  currentVersion: '',
   remark: ''
 })
 
@@ -142,6 +146,7 @@ function handleCreate() {
     customerName: '',
     contactPerson: '',
     contactPhone: '',
+    currentVersion: '',
     remark: ''
   })
   dialogVisible.value = true
