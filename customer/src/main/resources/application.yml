@@ -44,8 +44,6 @@ mybatis-plus:
 
 # 盘家智管配置
 panjia:
-  operator:
-    name: admin
   license:
     # JKS 配置（密码从环境变量 PANJIA_JKS_PASSWORD 注入，禁止明文写在这里）
     jks-path: ${PANJIA_JKS_PATH:script/keys/panjia-license.jks}
