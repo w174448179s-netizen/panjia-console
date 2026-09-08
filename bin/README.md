@@ -14,7 +14,6 @@
 | `push-frontend.sh` | **只**推送前端（Vue 改动） | 改完 Vue 代码、跳过后端发布 |
 | `push-homepage.sh` | 推送官网首页（`ui/homepage/` → 服务器 `web/home`） | 改完官网静态页 |
 | `push-nginx.sh` | 推送 nginx 配置并安全生效（备份→校验→回滚） | 改完 nginx.conf / .htpasswd |
-| `deploy-to-server.sh` | 老的全量发布脚本，已被 `setup-server.sh` + `push-*` 取代 | 留作参考，不再使用 |
 
 ### 服务器初始化
 
