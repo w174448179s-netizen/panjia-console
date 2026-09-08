@@ -36,6 +36,13 @@ import java.util.List;
  * <p>
  * 全系统签发 JWT 的两处入口：activate 接口（§4.4）与心跳续签（P0-B）。
  * 心跳续签仅在 token 剩余寿命低于阈值且校验全部通过时重签，其余心跳不签发新 JWT。
+ * <p>
+ * ★ 时区统一约定：
+ *   - 所有"日期"字段（startDate / endDate / maintenanceEndDate）为 LocalDate，无时区，
+ *     序列化后为纯字符串 "YYYY-MM-DD"，前后端直接比对字符串即可。
+ *   - licenseExpireAt 为"授权到期的瞬时时间点"，统一以 Asia/Shanghai 时区的
+ *     endDate 当天 23:59:59 为准（即 endDate 当天结束时过期）。
+ *     客户端用 Instant 比较，与客户端本地时区无关，到期时间绝对一致。
  */
 @Slf4j
 @Component
@@ -115,11 +122,11 @@ public class JwtIssuer {
                 .claim("offlineExpireAt", claims.getOfflineExpireAt() != null
                         ? Date.from(claims.getOfflineExpireAt().toInstant()) : null)
                 // P0-1 修复：补签 licenseExpireAt（授权实际到期日），客户端 LicenseVerifier 据此做 token 过期兜底
-                // P2 修复：取 endDate 当天 23:59:59（end_of_day），而非 atStartOfDay 的 00:00 ——
-                //   否则授权最后一天零点即被判定过期，客户损失完整一天授权
+                // 时区统一：显式用 Asia/Shanghai 计算 endDate 当天 23:59:59 的瞬时时间点，
+                // 不依赖系统默认时区，确保跨时区部署到期时间一致。
                 .claim("licenseExpireAt", claims.getEndDate() != null
                         ? Date.from(claims.getEndDate().plusDays(1)
-                                .atStartOfDay(ZoneId.systemDefault()).toInstant()
+                                .atStartOfDay(ZoneId.of("Asia/Shanghai")).toInstant()
                                 .minusSeconds(1)) : null)
                 .issuedAt(Date.from(now.toInstant()))
                 .expiration(Date.from(exp.toInstant()))
@@ -168,10 +175,10 @@ public class JwtIssuer {
                 .clientMode(getString(claims, "clientMode"))
                 .offlineExpireAt(toOffsetDateTime(claims.get("offlineExpireAt", Date.class)))
                 .issuedAt(claims.getIssuedAt() != null
-                        ? claims.getIssuedAt().toInstant().atZone(ZoneId.systemDefault()).toOffsetDateTime()
+                        ? claims.getIssuedAt().toInstant().atZone(ZoneId.of("Asia/Shanghai")).toOffsetDateTime()
                         : null)
                 .expiresAt(claims.getExpiration() != null
-                        ? claims.getExpiration().toInstant().atZone(ZoneId.systemDefault()).toOffsetDateTime()
+                        ? claims.getExpiration().toInstant().atZone(ZoneId.of("Asia/Shanghai")).toOffsetDateTime()
                         : null)
                 .build();
     }
@@ -228,6 +235,7 @@ public class JwtIssuer {
         if (date == null) {
             return null;
         }
-        return date.toInstant().atZone(ZoneId.systemDefault()).toOffsetDateTime();
+        // 统一用 Asia/Shanghai 时区解析，不依赖系统默认时区
+        return date.toInstant().atZone(ZoneId.of("Asia/Shanghai")).toOffsetDateTime();
     }
 }

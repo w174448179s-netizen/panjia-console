@@ -49,7 +49,11 @@
         </el-table-column>
         <el-table-column prop="maxStores" label="门店数" width="80" />
         <el-table-column prop="maxUsers" label="用户数" width="80" />
-        <el-table-column prop="endDate" label="到期日期" width="120" />
+        <el-table-column label="到期日期" width="120">
+          <template #default="{ row }">
+            {{ formatDate(row.endDate) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="issueAt" label="签发时间" width="170">
           <template #default="{ row }">
             {{ formatTime(row.issueAt) }}
@@ -297,7 +301,12 @@ async function handleIssueSubmit() {
     if (!valid) return
     issuing.value = true
     try {
-      const res: any = await post('/v1/license-mgmt/issue', issueForm)
+      const res: any = await post('/v1/license-mgmt/issue', {
+        ...issueForm,
+        startDate: toDateStr(issueForm.startDate),
+        endDate: toDateStr(issueForm.endDate),
+        maintenanceEndDate: toDateStr(issueForm.maintenanceEndDate)
+      })
       ElMessage.success(`签发成功！授权码：${res.authCode}`)
       issueDialogVisible.value = false
       loadData()
@@ -375,7 +384,7 @@ async function handleRenewSubmit() {
     try {
       const payload: any = {
         authCode: renewForm.authCode,
-        endDate: renewForm.endDate
+        endDate: toDateStr(renewForm.endDate)
       }
       if (renewForm.version) payload.version = renewForm.version
       if (renewForm.maxStores != null) payload.maxStores = renewForm.maxStores
@@ -466,6 +475,19 @@ function statusLabel(status: string) {
 
 function formatTime(time: string) {
   return time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
+}
+
+/** 格式化纯日期（避免时区导致差一天） */
+function formatDate(date: string | null | undefined) {
+  if (!date) return '-'
+  // 后端返回 LocalDate 字符串 YYYY-MM-DD，直接取前10位
+  return date.toString().slice(0, 10)
+}
+
+/** 把 Date 对象转成 YYYY-MM-DD 字符串（提交给后端时用，避免时区偏差） */
+function toDateStr(date: Date | null | undefined): string | null {
+  if (!date) return null
+  return dayjs(date).format('YYYY-MM-DD')
 }
 
 onMounted(() => {
