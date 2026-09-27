@@ -22,6 +22,24 @@
 | `setup-server.sh` | 远程初始化服务器（装 docker、申请证书、部署） | 新服务器首次部署、域名/HTTPS 切换 |
 | `add-domain.sh` | 给已部署的 IP 模式服务器加域名（stage 2） | 域名解析到位后 |
 
+### FRP 内网穿透（`frp/`）
+
+| 脚本 | 用途 | 运行时机 |
+|---|---|---|
+| `frp/install-frps.sh` | 云服务器以 Docker 容器跑 frps（`/opt/panjia-frp/` 编排，幂等），支持多成员同时接入 | 首次开启「外网访问本机服务」、升级 frp 版本 |
+| `frp/install-frpc.sh` | 本机以 Docker 容器跑 frpc（幂等），把本机 panjia-ui(80)/panjia-server(8080) 挂到服务器 | 首次配置、frps 重置 token 后（加 `--reset-config`） |
+| `frp/pack-frpc.sh` | 为成员打「一键接入包」zip（toml + 镜像 + Mac/Windows 启动脚本 + 说明） | 新成员接入（第 N 号成员 → 3000+N / 8080+N） |
+| `frp/firewall-rules.csv` | 腾讯云轻量服务器「防火墙 → 导入规则」用的 CSV（放行 7000/7500/3000-3099/8080-8099/3100-3199），**必须选「追加导入」**，覆盖导入会清掉 22/80/443 | frps 装好后外网仍不通时 |
+| `frp/deploy-preview.sh` | 把 panjia-ui 构建产物发布到服务器（全员共享同一份 dist，nginx 静态直出），客户访问 `panjia.icu:3100+N`（N=成员号，0 号即 3100）；API 经 `8080+N` 隧道回成员本机后端。前端改动：`pnpm build && sh bin/frp/deploy-preview.sh`；新成员：`deploy-preview.sh <N>` | 前端改动后 / 新成员接入 |
+| `frp/nginx-preview.conf` | preview 站点模板（`__WEB_PORT__`/`__API_PORT__` 占位符），由 deploy-preview.sh 按成员号替换后上传 | 一般不单独使用 |
+
+# 前端改动后（全员客户同步更新）
+cd panjia-ui && pnpm build && sh ../panjia-console/bin/frp/deploy-preview.sh
+
+# 新成员接入（第 N 号）
+sh bin/frp/pack-frpc.sh <名字> <3000+N> <8080+N>   # 打包发给成员
+sh bin/frp/deploy-preview.sh <N>                    # 服务器开站点
+
 ### 密钥与认证
 
 | 脚本 | 用途 | 运行时机 |

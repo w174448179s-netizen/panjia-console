@@ -34,6 +34,11 @@ deploy/nginx/.htpasswd
 # 服务器连接信息（IP/账号，脚本 bin/*.sh 从这里读取）
 bin/server.env
 
+# FRP 本地产物（含 token 的客户端配置 + 分发包）
+bin/frp/bin/
+bin/frp/frpc.toml
+bin/frp/dist/
+
 # 环境变量
 .env
 .env.local
