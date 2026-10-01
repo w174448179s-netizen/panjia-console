@@ -86,15 +86,16 @@ docker run -d --name panjia-local-backend \
 echo ""
 echo "等待服务启动（约 10~30 秒）..."
 for i in $(seq 1 30); do
+    # 直连后端不带 /prod-api 前缀（该前缀由 preview nginx 反代时剥离）
     CODE=$(curl -s -o /dev/null -w '%{http_code}' \
-        --max-time 2 http://localhost:18080/prod-api/auth/tenant/list 2>/dev/null || true)
+        --max-time 2 http://localhost:18080/auth/tenant/list 2>/dev/null || true)
     if [ "$CODE" = "200" ]; then
         echo "✓ 健康检查通过（HTTP 200）"
         break
     fi
     sleep 2
     if [ "$i" = "30" ]; then
-        echo "⚠ 服务启动较慢，请稍后手动检查：curl http://localhost:18080/prod-api/auth/tenant/list"
+        echo "⚠ 服务启动较慢，请稍后手动检查：curl http://localhost:18080/auth/tenant/list"
     fi
 done
 
