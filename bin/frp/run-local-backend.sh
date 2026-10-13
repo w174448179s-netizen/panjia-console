@@ -70,7 +70,8 @@ fi
 # ---- 构建镜像 ----
 echo ""
 echo "[2/3] Docker 构建镜像 panjia-local-backend:latest ..."
-docker build -f Dockerfile.local -t panjia-local-backend:latest .
+# DOCKER_BUILDKIT=1：启用 BuildKit，分层缓存命中时明确显示 CACHED，避免重复安装 postgresql-client
+DOCKER_BUILDKIT=1 docker build -f Dockerfile.local -t panjia-local-backend:latest .
 
 # ---- 启动容器 ----
 echo ""
