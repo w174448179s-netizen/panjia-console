@@ -54,6 +54,8 @@ done
 
 WEB_PORT=$((3100 + MEMBER))
 API_PORT=$((8080 + MEMBER))
+# MinIO 回显隧道口（frps 白名单 3000-3099；member0=3010，nginx /minio 反代到这里）
+MINIO_PORT=$((3010 + MEMBER))
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 UI_DIR="${PANJIA_UI_DIR:-$(cd "$SCRIPT_DIR/../../.." && pwd)/panjia-ui}"
@@ -103,7 +105,7 @@ echo ""
 echo "[2/4] 生成成员 $MEMBER 的 nginx 站点（listen $WEB_PORT → api $API_PORT）..."
 TMP_CONF="$(mktemp)"
 trap 'rm -f "$TMP_CONF"' EXIT
-sed -e "s/__WEB_PORT__/$WEB_PORT/g" -e "s/__API_PORT__/$API_PORT/g" \
+sed -e "s/__WEB_PORT__/$WEB_PORT/g" -e "s/__API_PORT__/$API_PORT/g" -e "s/__MINIO_PORT__/$MINIO_PORT/g" \
     "$SCRIPT_DIR/nginx-preview.conf" > "$TMP_CONF"
 
 ssh "$SSH_TARGET" "sudo mkdir -p /opt/panjia-preview/conf /opt/panjia-preview/dist && sudo chown -R $SSH_USER /opt/panjia-preview"
