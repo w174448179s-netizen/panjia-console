@@ -1,62 +1,53 @@
-# bin/frp —— FRP 内网穿透与 preview 部署
+# bin/frp —— FRP 内网穿透与本地整栈
 
 把「云服务器 + 各客户本机」打通的一套脚本：盘家系统**整栈**部署在每个客户自己的机器上（deploy/docker：nginx 同源服务前端 + `/prod-api` + `/oss`，外加后端/PostgreSQL/Redis/MinIO），frpc 反向连到云服务器的 frps。**每个客户只开一条隧道**，外网通过 `http://panjia.icu:3000+N` 访问——页面 / API / 图片回显全部同源。
 
-## 架构（2026-10 终版：整栈一体 + 单隧道）
+**0 号开发机与客户机完全同构**（本地也用 deploy/docker 的 nginx.conf + web nginx:80 + 单隧道 3000→80），测过的就是交付的。
+
+## 架构（2026-10 终版：整栈一体 + 单隧道，全员一致）
 
 ```
 客户浏览器
    │  http://panjia.icu:3000+N        (同源入口：页面/API/图片)
    ▼
 云服务器 (panjia.icu)
-   ├─ panjia-frps 容器     7000/7500  frp 服务端（白名单 3000-3099 + 8080-8099）
-   │                                    ▲ frpc 反向连接（纯 TCP 转发，零业务配置）
-   ├─ panjia-preview 容器  3100        【仅 0 号开发机】共享 dist + /prod-api + /minio
-   │                                   反代（依赖 0 号的 api/minio 双隧道）
+   └─ panjia-frps 容器     7000/7500  frp 服务端（白名单 3000-3099 + 8080-8099）
+                                        ▲ frpc 反向连接（纯 TCP 转发，零业务配置）
    ▼
-客户本机（第 N 号，N ≥ 1）
+本机（0 号开发机 / 客户机，形态完全一致）
    ├─ panjia-frpc 容器    远端 3000+N → 本机 80（一条隧道全包）
-   └─ deploy/docker 整栈
-         nginx:80        前端 dist + /prod-api → server + /oss → minio（同源）
+   └─ 整栈
+         web nginx:80     前端 dist + /prod-api → server + /oss → minio（同源）
          server / postgres / redis / minio
 ```
 
-> 演进记录：v1 三隧道（ui 3000+N / api 8080+N / minio 3010+N + 每客户 preview 站点）
-> → v2 双隧道（api + minio）→ **终版单隧道**（前端部署到客户机，一个端口全包，
-> preview 多成员机制退役；3100 仅供 0 号开发机使用）。3000-3099 白名单复用为
-> 客户入口端口池，无需改 frps。
+> 0 号本地栈：中间件用 `panjia-server/script/docker/docker-compose.yml`
+> （其 `web` 服务与客户 deploy/docker 同一份 nginx.conf，dist 挂载 panjia-ui/dist）；
+> 后端容器由 `run-local-backend.sh` 以 `--network-alias server` 接入同一网络。
+> **preview 多成员机制已退役**（panjia.icu 上 3100 共享 dist 站点已下线；
+> `nginx-preview.conf` / `deploy-preview.sh` 留档不再使用）。
 
-## 端口约定（第 N 号客户，N 从 0 开始）
+## 端口约定（第 N 号，N 从 0 开始）
 
 | 用途 | 端口 | 落点 |
 |---|---|---|
-| 客户系统入口（同源：页面/API/图片） | **3000 + N** | 客户机 nginx:80（deploy/docker 整栈，`WEB_PORT` 对外发布） |
-| 0 号开发机 preview | 3100 | 服务器 preview nginx（依赖 0 号本机 api 8080 / minio 3010 双隧道） |
-| 0 号开发机隧道 | 8080 / 3010 | 本机 18080(Docker 后端)/8080(IDE) / MinIO 9000 |
+| 系统入口（同源：页面/API/图片） | **3000 + N** | 本机 nginx:80（0 号：script/docker 的 web；客户：deploy/docker 的 web） |
+| 0 号本地后端直连 | 18080 | 本机 Docker 后端（nginx 经内网别名 `server` 直达，18080 仅供调试） |
 | frps 控制 / 面板 | 7000 / 7500 | 服务器 |
 
-- 客户容量上限 **N ≤ 99**（3000-3099 端口池；8080-8099 白名单仅供 0 号开发机隧道，可择机收紧）
+- 容量上限 **N ≤ 99**（3000-3099 端口池）
 - remotePort 先到先得，撞端口会注册失败并提示，天然防冲突
-- 客户内外访问**同一形态**：内网直接 `http://客户机IP/`，外网 `http://panjia.icu:3000+N/`
+- 内外访问**同一形态**：内网 `http://本机IP/`，外网 `http://panjia.icu:3000+N/`
 
 ## 脚本一览
-
-### 服务器侧（管理员执行）
 
 | 脚本 | 作用 | 用法 |
 |---|---|---|
 | `install-frps.sh` | 服务器上装 frps（Docker 容器常驻） | `sh bin/frp/install-frps.sh`；`--reset-config` 重置 token/面板密码 |
-| `deploy-preview.sh` | 发布前端 dist + 0 号 preview 站点（自动 reload） | `sh bin/frp/deploy-preview.sh [--build]` |
-
-服务器落点：`/etc/frp/frps.toml`、`/opt/panjia-frp/docker-compose.yml`、`/opt/panjia-preview/{conf,dist}`。
-腾讯云安全组放行：`firewall-rules.csv`（7000 / 7500 / 3000-3099 / 8080-8099 / 3100-3199）。
-
-### 客户接入（管理员打包 → 客户一键接入）
-
-| 脚本 | 作用 | 用法 |
-|---|---|---|
-| `install-frpc.sh` | 本机装 frpc（Docker 容器常驻） | `sh bin/frp/install-frpc.sh`；`--reset-config` 重写（**0 号双隧道为手工维护，重置会覆盖，慎用**）；`--gen-user` 只生成分发包 |
+| `install-frpc.sh` | 本机装 frpc（Docker 容器常驻） | `sh bin/frp/install-frpc.sh`；`--reset-config` 重写 |
 | `pack-frpc.sh` | 给新客户打「一键接入包」 | `sh bin/frp/pack-frpc.sh <客户名> <3000+N>`（单端口） |
+| `run-local-backend.sh` | 0 号后端 Docker 化（别名 server 接入本地网络） | `sh bin/frp/run-local-backend.sh [--skip-build \| --stop]` |
+| `deploy-preview.sh` / `nginx-preview.conf` | 【已退役】preview 多成员机制留档 | 不再使用 |
 
 ## 新客户接入流程（第 N 号）
 
@@ -81,52 +72,42 @@ sh bin/frp/pack-frpc.sh <客户名> <3000+N>   # 1. 打包 frpc 接入包（zip 
 > **前端/后端版本永远一体发布**：升级 = 给客户发新 deploy 包（含 dist），杜绝
 > 「服务器前端新、客户后端旧」的接口错位。
 
-## 本机后端 Docker 化（0 号开发机，IDE 与远程访问互不冲突）
+## 0 号开发机日常（与客户同构）
 
-| 脚本 | 作用 | 用法 |
-|---|---|---|
-| `run-local-backend.sh` | 把后端打包成 Docker 容器跑在 18080 | `sh bin/frp/run-local-backend.sh [--skip-build \| --stop]` |
+```bash
+# 后端改动 → 重建本地 Docker 后端（与客户交付物同一镜像、同一 nginx、同一形态）
+sh bin/frp/run-local-backend.sh            # Maven 打包 + 建镜像 + 起容器
+sh bin/frp/run-local-backend.sh --skip-build   # 不重打包
 
-- 远程 preview 走 frp → 宿主机 **18080**（Docker 后端，打包版）；
-- IDE 开发继续占 **8080**，两边完全独立；
-- **数据库分离**：Docker 后端用 `panjia_test` 测试库，IDE 开发用 `postgres` 开发库（同一 PG 实例两个库，Flyway 首次启动自动建表）；
-- 切换 frp 指向：改 `frpc.toml` 里 `panjia-api` 的 `localPort`（18080=Docker / 8080=IDE），然后 `docker restart panjia-frpc`；
-- Docker 后端通过 `host.docker.internal` 连本机的 postgres/redis/minio（profile：`dev,docker-local`，覆盖配置在 `panjia-server/ruoyi-admin/src/main/resources/application-docker-local.yml`）；
-- 本机后端容器若重建过，需补一句 `docker network connect docker_default panjia-local-backend`（详见 deploy/docker/OSS_SETUP.md）。
+# 前端改动 → 构建 dist 即时生效（web nginx 挂载 dist，无需重启）
+cd panjia-ui && pnpm build
+
+# IDE 开发（vite 已挪到 5173，不与 80 冲突）
+cd panjia-ui && pnpm dev                   # http://localhost:5173，/prod-api 仍代理 IDE 8080
+
+# 验证三条链路（本机）
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost/
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost/prod-api/auth/tenant/list
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost/oss/minio/health/live
+
+# 验证外网（经 frp）
+curl -s -o /dev/null -w '%{http_code}\n' http://panjia.icu:3000/
+```
+
+- 数据库分离：Docker 后端用 `panjia_test` 测试库，IDE 开发用开发库（`application-docker-local.yml`）；
+- Docker 后端重建后 run 脚本会自动挂 `--network docker_default --network-alias server`；
+- 0 号的 frpc 配置 `bin/frp/frpc.toml` 为手工维护（单隧道 panjia-app 3000→80）。
 
 ## 配置文件
 
 | 文件 | 说明 |
 |---|---|
-| `frpc.toml` | 0 号开发机 frpc 配置（**手工维护**：api 8080 / minio 3010 双隧道 + preview 3100 依赖；含 token，不入 Git） |
-| `nginx-preview.conf` | 0 号 preview 站点模板（`__WEB_PORT__`/`__API_PORT__`/`__MINIO_PORT__`） |
+| `frpc.toml` | 0 号开发机 frpc 配置（手工维护：单隧道 panjia-app 3000→80；含 token，不入 Git） |
+| `nginx-preview.conf` | 【已退役】旧 preview 站点模板，留档 |
 | `firewall-rules.csv` | 腾讯云安全组放行清单 |
-
-## 日常操作速查
-
-```bash
-# 0 号 preview 前端更新
-pnpm build && sh bin/frp/deploy-preview.sh
-
-# 0 号后端改动，让远程 preview 用上新代码（本地 Docker 后端重建）
-sh bin/frp/run-local-backend.sh
-
-# 查看 frpc 状态 / 日志
-docker ps --filter name=panjia-frpc
-docker logs -f panjia-frpc
-
-# 验证 0 号 preview 三条链路
-curl http://panjia.icu:3100/                                  # 页面
-curl http://panjia.icu:3100/prod-api/auth/tenant/list         # API
-curl http://panjia.icu:3100/minio/panjia-file/<任一文件路径>    # 图片（health 路径 403 属正常）
-
-# 验证某客户入口（N=1）
-curl http://panjia.icu:3001/ && curl http://panjia.icu:3001/oss/minio/health/live
-```
 
 ## 注意
 
 - frp 版本三处保持一致：`install-frps.sh` / `install-frpc.sh` / `pack-frpc.sh` 里的 `FRP_VERSION`。
 - `frpc.toml`、分发包 zip 都含 token，不要提交 Git、不要外传。
-- 0 号 preview 的 dist 全员共享时代已结束：preview 只服务 0 号自己；客户前端随各自 deploy 包走。
-- OSS 配置三通道口径见 `panjia-server/deploy/docker/OSS_SETUP.md`（endpoint 统一 `minio:9000`；domain_url = 各自入口 + `/oss`；0 号 preview 例外为 `panjia.icu:3100/minio`）。
+- OSS 配置三通道口径见 `panjia-server/deploy/docker/OSS_SETUP.md`（endpoint 统一 `minio:9000`；domain_url = 各自入口 + `/oss`）。

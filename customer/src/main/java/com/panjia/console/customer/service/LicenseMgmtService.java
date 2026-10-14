@@ -3,7 +3,7 @@ package com.panjia.console.customer.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.panjia.console.common.util.TimeUtils;
 import com.panjia.console.customer.domain.AuthIssueRecord;
 import com.panjia.console.customer.mapper.AuthIssueRecordMapper;
@@ -31,6 +31,7 @@ public class LicenseMgmtService {
 
     private final LicenseEngine licenseEngine;
     private final AuthIssueRecordMapper authIssueRecordMapper;
+    private final ObjectMapper objectMapper;
 
     /**
      * 签发授权
@@ -54,7 +55,8 @@ public class LicenseMgmtService {
         record.setMaxStores(req.getMaxStores());
         record.setMaxUsers(req.getMaxUsers());
         if (req.getCapabilities() != null) {
-            record.setCapabilities(String.join(",", req.getCapabilities()));
+            // capabilities 列是 jsonb，必须存 JSON 数组文本（String.join 会写入非法 JSON 导致 500）
+            record.setCapabilities(objectMapper.writeValueAsString(req.getCapabilities()));
         }
         record.setStartDate(req.getStartDate());
         record.setEndDate(req.getEndDate());
