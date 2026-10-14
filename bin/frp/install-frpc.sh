@@ -2,33 +2,34 @@
 # ============================================================================
 # FRP 客户端（frpc）安装 —— Docker 容器方式，在本机 Mac 执行
 #
-# 架构：盘家系统整栈部署在每台成员自己的机器上（nginx+后端+MinIO），
-#       frpc 容器化后连到你服务器的 frps。前端构建产物全员共享在 panjia.icu
-#       （preview 站点），preview nginx 通过 frp 隧道访问各成员本机的后端与 MinIO：
-#         api   隧道 = 8080 + N → 本机后端（preview 站点 /prod-api 反代用）
-#         minio 隧道 = 3010 + N → 本机 MinIO（preview 站点 /minio 反代用，图片回显）
+# 架构：盘家系统整栈部署在每台客户自己的机器上（deploy/docker：nginx 同源服务
+#       前端 + /prod-api + /oss，外加后端/PostgreSQL/Redis/MinIO），frpc 容器化后
+#       连到你服务器的 frps，每个客户只开一条隧道：
+#         app 隧道 = 3000 + N → 客户机 nginx:80（页面/API/图片回显 全同源走它）
+#       外网入口 = http://panjia.icu:3000+N
+#       图片回显 domain_url = panjia.icu:3000+N/oss（客户机自己 nginx 的 /oss 反代）
+#       （0 号管理员本机例外：手工维护双隧道 api 8080 / minio 3010 + preview 3100，
+#         前端共享在 panjia.icu —— 这是开发机遗留形态，新客户一律用上面的单隧道模型）
 #
 # 两种模式：
 #   1) 本机安装（默认）：构建 panjia-frpc 镜像并启动常驻容器
 #        sh bin/frp/install-frpc.sh [--reset-config]
 #   2) 生成成员配置（--gen-user）：管理员生成「成员 toml + 镜像 tar」包供分发，
 #      成员机器上只要有 docker，load + run 两条命令接入
-#        REMOTE_API_PORT=8081 REMOTE_MINIO_PORT=3011 \
-#            sh bin/frp/install-frpc.sh --gen-user zhangsan
+#        REMOTE_APP_PORT=3001 sh bin/frp/install-frpc.sh --gen-user zhangsan
 #
-# 端口分配约定（第 N 号成员，N 从 0 开始，每人一组绝不重复）：
-#   系统入口     = 3100 + N     （0 号：3100，1 号：3101，… preview nginx 对外端口）
-#   api 远端端口 = 8080 + N     （0 号：8080，1 号：8081，… 上限 8099）
-#   minio 远端端口 = 3010 + N   （0 号：3010，1 号：3011，… 上限 3099）
-#   本机服务端口所有成员相同：后端 8080 / MinIO 9000
+# 端口分配约定（第 N 号客户，N 从 0 开始，每人一个绝不重复）：
+#   系统入口 = app 远端端口 = 3000 + N  （0 号：3000，1 号：3001，… 上限 3099）
+#   本机落点：客户机 nginx:80（deploy/docker 整栈，WEB_PORT 对外发布）
 #
 # 参数：
-#   --reset-config          重新拉取 token 并重写本机 frpc.toml
-#   --gen-user <名字>       生成成员分发包（不装本机容器）；必须用环境变量
-#                           显式指定该成员的 REMOTE_API_PORT / REMOTE_MINIO_PORT
+#   --reset-config          重新拉取 token 并重写本机 frpc.toml（新模板=单隧道客户模式；
+#                           0 号管理员本机双隧道为手工维护，重置会覆盖，慎用）
+#   --gen-user <名字>       生成客户分发包（不装本机容器）；必须用环境变量
+#                           显式指定该客户的 REMOTE_APP_PORT
 #   端口环境变量：
-#     LOCAL_API_PORT=8080 LOCAL_MINIO_PORT=9000   本机服务端口（后端 / MinIO）
-#     REMOTE_API_PORT / REMOTE_MINIO_PORT         服务器暴露端口（每人不同！）
+#     LOCAL_APP_PORT=80     客户机 nginx 端口（默认 80）
+#     REMOTE_APP_PORT       服务器暴露端口（每人不同！）
 #
 # 幂等性：可重复执行
 #   - 镜像已存在 → [SKIP] 构建
@@ -75,12 +76,9 @@ FRPC_CONF="${FRP_DIR}/frpc.toml"
 DIST_DIR="${FRP_DIR}/dist"
 
 # ---- 端口（gen 模式要求远端端口显式指定，防止所有人撞默认端口）----
-GEN_MINIO_SPECIFIED="${REMOTE_MINIO_PORT:-}"
-GEN_API_SPECIFIED="${REMOTE_API_PORT:-}"
-LOCAL_MINIO_PORT="${LOCAL_MINIO_PORT:-9000}"
-LOCAL_API_PORT="${LOCAL_API_PORT:-8080}"
-REMOTE_MINIO_PORT="${REMOTE_MINIO_PORT:-3010}"
-REMOTE_API_PORT="${REMOTE_API_PORT:-8080}"
+GEN_APP_SPECIFIED="${REMOTE_APP_PORT:-}"
+LOCAL_APP_PORT="${LOCAL_APP_PORT:-80}"
+REMOTE_APP_PORT="${REMOTE_APP_PORT:-3000}"
 
 # ---- 服务器配置（优先级：环境变量 > bin/server.env）----
 ENV_FILE="$(cd "${FRP_DIR}/.." && pwd)/server.env"
@@ -128,19 +126,11 @@ loginFailExit = false
 transport.tcpMux = false
 
 [[proxies]]
-name = "panjia-minio"
+name = "panjia-app"
 type = "tcp"
 localIP = "host.docker.internal"
-localPort = ${LOCAL_MINIO_PORT}
-remotePort = ${REMOTE_MINIO_PORT}
-transport.useEncryption = true
-
-[[proxies]]
-name = "panjia-api"
-type = "tcp"
-localIP = "host.docker.internal"
-localPort = ${LOCAL_API_PORT}
-remotePort = ${REMOTE_API_PORT}
+localPort = ${LOCAL_APP_PORT}
+remotePort = ${REMOTE_APP_PORT}
 transport.useEncryption = true
 EOF
 }
@@ -200,8 +190,7 @@ else
     echo "  frpc 安装（本机 Docker）"
 fi
 echo "  frps：${FRPS_ADDR}:7000"
-echo "  映射：${REMOTE_API_PORT} → 本机:${LOCAL_API_PORT}（panjia-server）"
-echo "        ${REMOTE_MINIO_PORT} → 本机:${LOCAL_MINIO_PORT}（panjia-minio）"
+echo "  隧道：${REMOTE_APP_PORT} → 本机:${LOCAL_APP_PORT}（nginx 整栈同源入口）"
 if [ "$RESET_CONFIG" = 1 ]; then
     echo "  模式：重置配置（重新拉取 token）"
 fi
@@ -209,9 +198,9 @@ echo "=========================================="
 
 # ==================== 成员分发包模式（--gen-user）====================
 if [ -n "${GEN_USER}" ]; then
-    if [ -z "${GEN_MINIO_SPECIFIED}" ] || [ -z "${GEN_API_SPECIFIED}" ]; then
-        echo "[ERROR] --gen-user 模式必须显式指定该成员的远端端口（每人不同）："
-        echo "  REMOTE_API_PORT=8081 REMOTE_MINIO_PORT=3011 sh bin/frp/install-frpc.sh --gen-user zhangsan"
+    if [ -z "${GEN_APP_SPECIFIED}" ]; then
+        echo "[ERROR] --gen-user 模式必须显式指定该客户的远端端口（每人不同）："
+        echo "  REMOTE_APP_PORT=3001 sh bin/frp/install-frpc.sh --gen-user zhangsan"
         exit 1
     fi
     TOKEN="$(fetch_token)"
@@ -238,9 +227,10 @@ if [ -n "${GEN_USER}" ]; then
     echo "      -v ./frpc-${GEN_USER}.toml:/etc/frp/frpc.toml:ro \\"
     echo "      ${IMAGE_NAME}:${IMAGE_TAG}"
     echo ""
-    echo "  成员系统部署好并启动后，访问："
-    GEN_N=$((REMOTE_API_PORT - 8080))
-    echo "    系统入口： http://${FRPS_ADDR}:$((3100 + GEN_N))（同源：页面/API/图片）"
+    echo "  客户系统部署好并启动后，访问："
+    GEN_N=$((REMOTE_APP_PORT - 3000))
+    echo "    系统入口：  http://${FRPS_ADDR}:${REMOTE_APP_PORT}（同源：页面/API/图片）"
+    echo "    domain_url = ${FRPS_ADDR}:${REMOTE_APP_PORT}/oss（系统里「文件配置管理」minio 行）"
     exit 0
 fi
 
@@ -260,6 +250,8 @@ else
     echo ">>> 步骤 2/4：生成 ${FRPC_CONF}"
     if [ "${RESET_CONFIG}" = "1" ] && [ -f "${FRPC_CONF}" ]; then
         echo "  [FORCE] --reset-config 已指定，重新拉取 token 并重写配置"
+        echo "  [提示] 新模板为单隧道客户模式（3000+N → 80）。0 号管理员本机的双隧道"
+        echo "         （api 8080 / minio 3010，preview 3100 依赖）为手工维护，重置后需手工恢复"
     fi
     TOKEN="$(fetch_token)"
     if [ -z "${TOKEN}" ]; then
@@ -311,11 +303,11 @@ else
     echo "  [WARN] 无法连通 ${SSH_TARGET}:7000（检查腾讯云安全组是否放行 7000/TCP）"
 fi
 
-for p in "${LOCAL_MINIO_PORT}" "${LOCAL_API_PORT}"; do
+for p in "${LOCAL_APP_PORT}"; do
     if nc -z -w 2 127.0.0.1 "${p}" >/dev/null 2>&1; then
         echo "  ✓ 本机端口 ${p} 在监听"
     else
-        echo "  [WARN] 本机端口 ${p} 未监听（frp 只做转发，记得先启动 panjia-server / panjia-minio）"
+        echo "  [WARN] 本机端口 ${p} 未监听（frp 只做转发，先启动 deploy/docker 整栈：nginx:${p}）"
     fi
 done
 
@@ -325,11 +317,11 @@ echo "  ✓ frpc 安装完成"
 echo "=========================================="
 echo ""
 echo "  外网访问（系统入口同源，页面/API/图片全走这一个地址）："
-GEN_N=${GEN_N:-$((REMOTE_API_PORT - 8080))}
-echo "    系统入口： http://${FRPS_ADDR}:$((3100 + GEN_N))"
+GEN_N=${GEN_N:-$((REMOTE_APP_PORT - 3000))}
+echo "    系统入口： http://${FRPS_ADDR}:${REMOTE_APP_PORT}"
 echo "    dashboard：http://${FRPS_ADDR}:7500（admin，密码见 install-frps.sh 输出）"
 echo ""
 echo "  日志：docker logs -f ${CONTAINER_NAME}"
 echo "  停止：docker rm -f ${CONTAINER_NAME}"
-echo "  为成员生成分发包：REMOTE_API_PORT=8081 REMOTE_MINIO_PORT=3011 sh bin/frp/install-frpc.sh --gen-user <名字>"
+echo "  为客户生成分发包：REMOTE_APP_PORT=3001 sh bin/frp/install-frpc.sh --gen-user <名字>"
 echo "=========================================="
