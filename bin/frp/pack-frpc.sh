@@ -4,16 +4,18 @@
 #
 # 作用：
 #   为指定成员打出「一键接入包」，直接发给成员。成员解压后跑一条命令，
-#   frpc 容器即接入 frps，外网通过 http://panjia.icu:端口 访问成员本机系统。
+#   frpc 容器即接入 frps，外网通过 http://panjia.icu:3100+N 访问成员本机系统
+#   （同源：页面 + API + 图片回显）。
 #
 # 用法：
-#   sh bin/frp/pack-frpc.sh <成员名> <ui远端端口> <api远端端口>
-#   示例：
-#     sh bin/frp/pack-frpc.sh zhangsan 3001 8081
+#   sh bin/frp/pack-frpc.sh <成员名> <api远端端口> <minio远端端口>
+#   示例（1 号成员）：
+#     sh bin/frp/pack-frpc.sh zhangsan 8081 3011
 #
-# 端口约定（第 N 号成员，N 从 0 开始）：
-#   ui  = 3000 + N（3000-3099）   api = 8080 + N（8080-8099）
-#   本机服务端口所有成员相同：panjia-ui 80 / panjia-server 8080（IDE/dev 默认）
+# 端口约定（第 N 号成员，N 从 0 开始；0 号 = 管理员自己）：
+#   系统入口 = 3100 + N（preview nginx，前端全员共享，无需隧道）
+#   api   = 8080 + N → 成员本机后端 8080（preview /prod-api 反代用）
+#   minio = 3010 + N → 成员本机 MinIO 9000（preview /minio 反代用，图片回显）
 #
 # 包内容（dist/panjia-frpc-<成员名>-<版本>.zip）：
 #   frpc-<成员名>.toml            成员专属配置（含 token，注意保密）
@@ -41,35 +43,37 @@ for arg in "$@"; do
 done
 
 # ---- 参数 ----
-GEN_USER="${1:?用法：sh bin/frp/pack-frpc.sh <成员名> <ui远端端口> <api远端端口>}"
-REMOTE_WEB_PORT="${2:?缺少 ui 远端端口（第 N 号成员 = 3000+N）}"
-REMOTE_API_PORT="${3:?缺少 api 远端端口（第 N 号成员 = 8080+N）}"
+GEN_USER="${1:?用法：sh bin/frp/pack-frpc.sh <成员名> <api远端端口> <minio远端端口>}"
+REMOTE_API_PORT="${2:?缺少 api 远端端口（第 N 号成员 = 8080+N）}"
+REMOTE_MINIO_PORT="${3:?缺少 minio 远端端口（第 N 号成员 = 3010+N）}"
 
 case "${GEN_USER}" in
     *[!a-zA-Z0-9_-]*) echo "[ERROR] 成员名仅限字母/数字/下划线/中划线（收到：${GEN_USER}）"; exit 1 ;;
 esac
-case "${REMOTE_WEB_PORT}" in
-    30[0-9][0-9]) ;; *) echo "[ERROR] ui 远端端口须在 3000-3099（收到：${REMOTE_WEB_PORT}）"; exit 1 ;;
-esac
 case "${REMOTE_API_PORT}" in
     80[89][0-9]) ;; *) echo "[ERROR] api 远端端口须在 8080-8099（收到：${REMOTE_API_PORT}）"; exit 1 ;;
 esac
-if [ "${REMOTE_WEB_PORT}" = "${REMOTE_API_PORT}" ]; then
-    echo "[ERROR] 两个端口不能相同"; exit 1
+case "${REMOTE_MINIO_PORT}" in
+    30[0-9][0-9]) ;; *) echo "[ERROR] minio 远端端口须在 3000-3099（收到：${REMOTE_MINIO_PORT}）"; exit 1 ;;
+esac
+MEMBER_N=$((REMOTE_API_PORT - 8080))
+if [ "$((REMOTE_MINIO_PORT - 3010))" != "${MEMBER_N}" ]; then
+    echo "[ERROR] 成员号不一致：api 端口对应第 ${MEMBER_N} 号，minio 端口应对应 3010+${MEMBER_N}=$((3010 + MEMBER_N))"; exit 1
 fi
 
 FRP_DIR="$(cd "$(dirname "$0")" && pwd)"
 DIST_DIR="${FRP_DIR}/dist"
 
 echo "=========================================="
-echo "  成员分发包：${GEN_USER}"
-echo "  端口：${REMOTE_WEB_PORT} → panjia-ui(80)，${REMOTE_API_PORT} → panjia-server(8080)"
+echo "  成员分发包：${GEN_USER}（第 ${MEMBER_N} 号）"
+echo "  隧道：${REMOTE_API_PORT} → 本机后端 8080，${REMOTE_MINIO_PORT} → 本机 MinIO 9000"
+echo "  外网入口：http://panjia.icu:$((3100 + MEMBER_N))"
 echo "=========================================="
 
 # ---- 1. 生成成员配置 + 确保镜像 tar（复用 install-frpc.sh --gen-user）----
 echo ""
 echo ">>> 1/3：生成成员配置与镜像..."
-REMOTE_WEB_PORT="${REMOTE_WEB_PORT}" REMOTE_API_PORT="${REMOTE_API_PORT}" \
+REMOTE_API_PORT="${REMOTE_API_PORT}" REMOTE_MINIO_PORT="${REMOTE_MINIO_PORT}" \
     sh "${FRP_DIR}/install-frpc.sh" --gen-user "${GEN_USER}" >/dev/null
 [ -f "${DIST_DIR}/frpc-${GEN_USER}.toml" ]            || { echo "[ERROR] 成员配置生成失败"; exit 1; }
 [ -f "${DIST_DIR}/panjia-frpc-${FRP_VERSION}.tar" ]   || { echo "[ERROR] 镜像 tar 导出失败"; exit 1; }
@@ -110,7 +114,7 @@ echo ""
 echo "最近日志（出现 login to server success 即接入成功）："
 docker logs --tail 5 ${CONTAINER_NAME} 2>&1
 echo ""
-echo "访问：http://panjia.icu:${REMOTE_WEB_PORT}（ui）、http://panjia.icu:${REMOTE_API_PORT}（api）"
+echo "访问（同源入口，页面/API/图片）：http://panjia.icu:$((3100 + MEMBER_N))"
 EOF
 chmod 755 "${PKG_DIR}/install-frpc.sh"
 
@@ -143,17 +147,20 @@ cat > "${PKG_DIR}/README.txt" <<EOF
 盘家系统 FRP 接入包（${GEN_USER}）
 ====================================
 
-访问地址（接入完成后）：
-  系统界面：http://panjia.icu:${REMOTE_WEB_PORT}
-  接口调试：http://panjia.icu:${REMOTE_API_PORT}
+访问地址（接入完成后，同源入口：页面/API/图片）：
+  http://panjia.icu:$((3100 + MEMBER_N))
 
 接入步骤：
   1. 机器上安装 docker（Mac/Windows 均为 Docker Desktop）
-  2. 把盘家系统在本机跑起来（panjia-ui 80 / panjia-server 8080 端口在监听）
-  3. 运行接入脚本：
+  2. 把盘家系统在本机跑起来，并确保宿主机以下端口在监听：
+       后端 8080、MinIO 9000
+     （docker compose 部署的，给 server 服务加 ports: "8080:8080"）
+  3. 系统里配置图片回显域名（文件配置管理 minio 行）：
+       domain_url = panjia.icu:$((3100 + MEMBER_N))/minio
+  4. 运行接入脚本：
        Mac / Linux： sh install-frpc.sh
        Windows：     双击 install-frpc.bat
-  4. 日志出现 login to server success 即接入成功
+  5. 日志出现 login to server success 即接入成功
 
 日常：
   查看日志：docker logs -f ${CONTAINER_NAME}
@@ -184,7 +191,9 @@ echo ""
 echo "  发给成员后，成员解压进入目录："
 echo "    Mac/Linux：sh install-frpc.sh"
 echo "    Windows：  双击 install-frpc.bat"
-echo "  访问：http://panjia.icu:${REMOTE_WEB_PORT}（ui）"
+echo "  访问：http://panjia.icu:$((3100 + MEMBER_N))（同源入口）"
 echo ""
-echo "  ★ 端口分配台账：${GEN_USER} → ui ${REMOTE_WEB_PORT} / api ${REMOTE_API_PORT}"
+echo "  ★ 端口分配台账：${GEN_USER} → 第${MEMBER_N}号：入口 $((3100 + MEMBER_N)) / api ${REMOTE_API_PORT} / minio ${REMOTE_MINIO_PORT}"
+echo "  ★ 提醒：部署后执行 sh bin/frp/deploy-preview.sh ${MEMBER_N} 生成该成员的 preview 站点"
+echo "  ★ 提醒：腾讯云安全组放行 $((3100 + MEMBER_N))/TCP（若未放行整段 3100-3199）"
 echo "=========================================="
